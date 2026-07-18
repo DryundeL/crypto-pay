@@ -13,7 +13,7 @@ RUN go mod download
 COPY . .
 
 # Build binaries
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags "-w -s" -o bin/analytic cmd/analytic/main.go && \
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags "-w -s" -o bin/crypto-pay cmd/crypto-pay/main.go && \
     CGO_ENABLED=0 GOOS=linux go build -ldflags "-w -s" -o bin/migrator cmd/migrator/main.go
 
 # Runtime stage
@@ -27,7 +27,7 @@ RUN apk update && \
 WORKDIR /app
 
 # Copy binaries from builder
-COPY --from=builder /build/bin/analytic .
+COPY --from=builder /build/bin/crypto-pay .
 COPY --from=builder /build/bin/migrator .
 
 # Copy migrations directory
