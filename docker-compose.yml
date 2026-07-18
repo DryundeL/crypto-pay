@@ -1,0 +1,71 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: crypto-pay_postgres
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    ports:
+      - "${DB_PORT}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - crypto-pay_network
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: crypto-pay_app
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      # Переопределяем только те переменные, которые специфичны для контейнера
+      DB_HOST: postgres  # Имя сервиса в docker-compose сети
+      DB_PORT: "5432"  # Внутренний порт PostgreSQL в Docker сети
+    ports:
+      - "${APP_PORT}:8080"
+    networks:
+      - crypto-pay_network
+    restart: unless-stopped
+
+  # Optional: Separate migrator service for manual migrations
+  migrator:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: analytic_migrator
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      # Переопределяем только те переменные, которые специфичны для контейнера
+      DB_HOST: postgres  # Имя сервиса в docker-compose сети
+      DB_PORT: "5432"  # Внутренний порт PostgreSQL в Docker сети
+    command: ["./migrator", "-command=up"]
+    volumes:
+      - ./migrations:/app/migrations:ro
+    networks:
+      - crypto-pay_network
+    profiles:
+      - tools
+
+volumes:
+  postgres_data:
+    driver: local
+  
+networks:
+  crypto-pay_network:
+    driver: bridge
+

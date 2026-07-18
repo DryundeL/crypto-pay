@@ -33,9 +33,6 @@ COPY --from=builder /build/bin/migrator .
 # Copy migrations directory
 COPY ./migrations ./migrations
 
-# Copy web directory (HTML files and static assets)
-COPY ./web ./web
-
 # Copy entrypoint script
 COPY docker-entrypoint.sh /
 RUN chmod +x /docker-entrypoint.sh
@@ -44,4 +41,4 @@ RUN chmod +x /docker-entrypoint.sh
 ENTRYPOINT ["/docker-entrypoint.sh"]
 
 # Run the application
-CMD ["./analytic"]
+CMD ["./crypto-pay"]

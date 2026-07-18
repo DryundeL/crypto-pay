@@ -34,3 +34,6 @@ storage/
 
 # Graphify
 graphify-out/
+
+# Cursor
+.cursor/
