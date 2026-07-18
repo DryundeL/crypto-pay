@@ -65,7 +65,7 @@ func Bootstrap() (*App, error) {
 	})
 
 	api := e.Group("/api")
-	merchant.RegisterRoutes(api, merchantModule)
+	merchantModule.RegisterHTTP(api)
 	invoice.RegisterRoutes(api)
 	payment.RegisterRoutes(api)
 	blockchain.RegisterRoutes(api)
