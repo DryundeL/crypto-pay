@@ -48,12 +48,30 @@ func (q *InvoiceQueries) GetInvoice(ctx context.Context, invoiceID, merchantID s
 		}
 		return query.InvoiceDTO{}, fmt.Errorf("query invoice: %w", err)
 	}
+	return mapInvoiceDTO(row), nil
+}
 
+func (q *InvoiceQueries) FindPendingByAddress(ctx context.Context, network, address string) (query.InvoiceDTO, error) {
+	var row invoiceDTORow
+	err := q.db.WithContext(ctx).
+		Select("id", "merchant_id", "status", "amount", "currency", "network", "address", "tx_hash", "expires_at", "created_at", "updated_at").
+		Where("network = ? AND address = ? AND status = ?", network, address, domain.StatusPending.String()).
+		Order("created_at DESC").
+		First(&row).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return query.InvoiceDTO{}, domain.ErrInvoiceNotFound
+		}
+		return query.InvoiceDTO{}, fmt.Errorf("query invoice by address: %w", err)
+	}
+	return mapInvoiceDTO(row), nil
+}
+
+func mapInvoiceDTO(row invoiceDTORow) query.InvoiceDTO {
 	txHash := ""
 	if row.TxHash != nil {
 		txHash = *row.TxHash
 	}
-
 	return query.InvoiceDTO{
 		ID:         row.ID,
 		MerchantID: row.MerchantID,
@@ -66,5 +84,5 @@ func (q *InvoiceQueries) GetInvoice(ctx context.Context, invoiceID, merchantID s
 		ExpiresAt:  row.ExpiresAt.UTC(),
 		CreatedAt:  row.CreatedAt.UTC(),
 		UpdatedAt:  row.UpdatedAt.UTC(),
-	}, nil
+	}
 }

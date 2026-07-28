@@ -1,5 +1,7 @@
 package invoice
 
+import "errors"
+
 // Public contracts of the Invoice bounded context.
 // Other modules depend only on these types/interfaces, never on invoice/internal.
 
@@ -13,3 +15,17 @@ const (
 	StatusExpired    Status = "expired"
 	StatusCancelled  Status = "cancelled"
 )
+
+// ErrNotFound is returned by public Module facades when an invoice cannot be found.
+var ErrNotFound = errors.New("invoice not found")
+
+// InvoiceRef is a cross-module read projection for matching deposits to invoices.
+type InvoiceRef struct {
+	ID         string
+	MerchantID string
+	Amount     string
+	Currency   string
+	Network    string
+	Address    string
+	Status     string
+}
