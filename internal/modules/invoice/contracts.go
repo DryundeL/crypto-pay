@@ -7,9 +7,9 @@ package invoice
 type Status string
 
 const (
-	StatusPending   Status = "pending"
+	StatusPending    Status = "pending"
 	StatusConfirming Status = "confirming"
-	StatusPaid      Status = "paid"
-	StatusExpired   Status = "expired"
-	StatusCancelled Status = "cancelled"
+	StatusPaid       Status = "paid"
+	StatusExpired    Status = "expired"
+	StatusCancelled  Status = "cancelled"
 )

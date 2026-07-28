@@ -63,7 +63,14 @@ func (m *Module) RegisterHTTP(g *echo.Group) {
 	})
 }
 
-// APIKeyMiddleware exposes merchant API-key auth for other modules' HTTP delivery.
+// APIKeyMiddleware exposes merchant API-key auth for merchant-owned routes
+// where path param "id" is the merchant id.
 func (m *Module) APIKeyMiddleware() echo.MiddlewareFunc {
 	return merchanthttp.APIKeyAuth(m.hasher, m.auth)
+}
+
+// APIKeyAuthOnly exposes API-key auth without binding path param "id" to merchant.
+// Other modules (invoice, …) should use this.
+func (m *Module) APIKeyAuthOnly() echo.MiddlewareFunc {
+	return merchanthttp.APIKeyAuthOnly(m.hasher, m.auth)
 }

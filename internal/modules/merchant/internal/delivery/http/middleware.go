@@ -22,8 +22,19 @@ const (
 // APIKeyAuth authenticates requests by hashing the presented API key and
 // looking up merchant_api_keys.key_hash. On success stores principal in context.
 //
-// If route param "id" is present, it must match the authenticated merchant.
+// If route param "id" is present, it must match the authenticated merchant
+// (merchant-owned routes like /merchants/:id).
 func APIKeyAuth(hasher ports.APIKeyGenerator, auth ports.APIKeyAuthenticator) echo.MiddlewareFunc {
+	return apiKeyAuth(hasher, auth, true)
+}
+
+// APIKeyAuthOnly authenticates the API key without binding route param "id"
+// to the merchant. Use for other modules (e.g. /invoices/:id).
+func APIKeyAuthOnly(hasher ports.APIKeyGenerator, auth ports.APIKeyAuthenticator) echo.MiddlewareFunc {
+	return apiKeyAuth(hasher, auth, false)
+}
+
+func apiKeyAuth(hasher ports.APIKeyGenerator, auth ports.APIKeyAuthenticator, bindRouteMerchantID bool) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
 			raw, ok := extractAPIKey(c)
@@ -39,8 +50,10 @@ func APIKeyAuth(hasher ports.APIKeyGenerator, auth ports.APIKeyAuthenticator) ec
 				return mapAuthError(c, err)
 			}
 
-			if routeMerchantID := c.Param("id"); routeMerchantID != "" && routeMerchantID != principal.MerchantID {
-				return c.JSON(http.StatusForbidden, errorResponse{Error: "forbidden"})
+			if bindRouteMerchantID {
+				if routeMerchantID := c.Param("id"); routeMerchantID != "" && routeMerchantID != principal.MerchantID {
+					return c.JSON(http.StatusForbidden, errorResponse{Error: "forbidden"})
+				}
 			}
 
 			ctx := authctx.WithAuth(c.Request().Context(), principal.MerchantID, principal.APIKeyID)
