@@ -63,18 +63,23 @@ func Bootstrap() (*App, error) {
 		DB:           db,
 		APIKeyPepper: cfg.App.JWTSecret,
 	})
-	invoiceModule := invoice.NewModule(invoice.Dependencies{DB: db})
+	blockchainModule := blockchain.NewModule(blockchain.Dependencies{DB: db})
+	invoiceModule := invoice.NewModule(invoice.Dependencies{
+		DB:              db,
+		AddressProvider: blockchainModule.AddressProvider(),
+	})
 	paymentModule := payment.NewModule(payment.Dependencies{
 		DB:               db,
 		InvoiceLookup:    invoiceModule,
 		InvoiceLifecycle: invoiceModule,
 	})
+	blockchainModule.SetPaymentNotifier(paymentModule)
 
 	api := e.Group("/api")
 	merchantModule.RegisterHTTP(api)
 	invoiceModule.RegisterHTTP(api, merchantModule.APIKeyAuthOnly())
 	paymentModule.RegisterHTTP(api, merchantModule.APIKeyAuthOnly())
-	blockchain.RegisterRoutes(api)
+	blockchainModule.RegisterHTTP(api, merchantModule.APIKeyAuthOnly())
 	ledger.RegisterRoutes(api)
 	withdrawal.RegisterRoutes(api)
 	webhook.RegisterRoutes(api)

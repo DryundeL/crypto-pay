@@ -8,7 +8,6 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/DryundeL/crypto-pay/internal/modules/blockchain"
 	"github.com/DryundeL/crypto-pay/internal/modules/invoice"
 	"github.com/DryundeL/crypto-pay/internal/modules/payment/internal/application/ports"
 	"github.com/DryundeL/crypto-pay/internal/modules/payment/internal/domain"
@@ -149,10 +148,9 @@ func toObservedResult(p *domain.Payment) RecordObservedResult {
 }
 
 func validateNetwork(network string) error {
-	switch blockchain.Network(network) {
-	case blockchain.NetworkEVMSepolia,
-		blockchain.NetworkBitcoinRegtest,
-		blockchain.NetworkBitcoinTestnet:
+	// Keep in sync with blockchain.Network* public constants (avoid import cycle).
+	switch network {
+	case "evm:sepolia", "btc:regtest", "btc:testnet":
 		return nil
 	default:
 		return fmt.Errorf("%w: unsupported network", domain.ErrInvalidPayment)

@@ -1,6 +1,9 @@
 package payment
 
 import (
+	"context"
+	"errors"
+
 	"github.com/labstack/echo/v4"
 	"gorm.io/gorm"
 
@@ -8,6 +11,7 @@ import (
 	"github.com/DryundeL/crypto-pay/internal/modules/payment/internal/application/ports"
 	"github.com/DryundeL/crypto-pay/internal/modules/payment/internal/application/query"
 	paymenthttp "github.com/DryundeL/crypto-pay/internal/modules/payment/internal/delivery/http"
+	"github.com/DryundeL/crypto-pay/internal/modules/payment/internal/domain"
 	"github.com/DryundeL/crypto-pay/internal/modules/payment/internal/infrastructure/read"
 	"github.com/DryundeL/crypto-pay/internal/modules/payment/internal/infrastructure/write"
 	"github.com/DryundeL/crypto-pay/internal/platform/outbox"
@@ -16,7 +20,9 @@ import (
 
 // Module is the Payment bounded context composition root (within the module).
 type Module struct {
-	handler *paymenthttp.Handler
+	handler        *paymenthttp.Handler
+	recordObserved *command.RecordObservedHandler
+	confirm        *command.ConfirmPaymentHandler
 }
 
 type Dependencies struct {
@@ -39,7 +45,9 @@ func NewModule(deps Dependencies) *Module {
 	getPayment := query.NewGetPaymentHandler(queries)
 
 	return &Module{
-		handler: paymenthttp.NewHandler(recordObserved, confirm, getPayment),
+		handler:        paymenthttp.NewHandler(recordObserved, confirm, getPayment),
+		recordObserved: recordObserved,
+		confirm:        confirm,
 	}
 }
 
@@ -50,4 +58,71 @@ func (m *Module) RegisterHTTP(g *echo.Group, authMiddleware echo.MiddlewareFunc)
 		Handler:        m.handler,
 		AuthMiddleware: authMiddleware,
 	})
+}
+
+// RecordObserved records a detected on-chain payment (sync facade for blockchain).
+func (m *Module) RecordObserved(ctx context.Context, in RecordObservedInput) (PaymentView, error) {
+	result, err := m.recordObserved.Handle(ctx, command.RecordObserved{
+		MerchantID:    in.MerchantID,
+		Network:       in.Network,
+		TxHash:        in.TxHash,
+		ToAddress:     in.ToAddress,
+		Amount:        in.Amount,
+		Currency:      in.Currency,
+		Confirmations: in.Confirmations,
+	})
+	if err != nil {
+		return PaymentView{}, mapFacadeError(err)
+	}
+	return PaymentView{
+		ID:            result.ID,
+		InvoiceID:     result.InvoiceID,
+		MerchantID:    result.MerchantID,
+		Status:        result.Status,
+		Network:       result.Network,
+		TxHash:        result.TxHash,
+		ToAddress:     result.ToAddress,
+		Amount:        result.Amount,
+		Currency:      result.Currency,
+		Confirmations: result.Confirmations,
+		CreatedAt:     result.CreatedAt,
+		UpdatedAt:     result.UpdatedAt,
+	}, nil
+}
+
+// Confirm confirms a previously observed payment (sync facade for blockchain).
+func (m *Module) Confirm(ctx context.Context, in ConfirmInput) (PaymentView, error) {
+	result, err := m.confirm.Handle(ctx, command.ConfirmPayment{
+		MerchantID: in.MerchantID,
+		Network:    in.Network,
+		TxHash:     in.TxHash,
+	})
+	if err != nil {
+		return PaymentView{}, mapFacadeError(err)
+	}
+	return PaymentView{
+		ID:            result.ID,
+		InvoiceID:     result.InvoiceID,
+		MerchantID:    result.MerchantID,
+		Status:        result.Status,
+		Network:       result.Network,
+		TxHash:        result.TxHash,
+		ToAddress:     result.ToAddress,
+		Amount:        result.Amount,
+		Currency:      result.Currency,
+		Confirmations: result.Confirmations,
+		CreatedAt:     result.CreatedAt,
+		UpdatedAt:     result.UpdatedAt,
+	}, nil
+}
+
+func mapFacadeError(err error) error {
+	switch {
+	case errors.Is(err, domain.ErrPaymentNotFound):
+		return ErrNotFound
+	case errors.Is(err, domain.ErrInvalidPayment), errors.Is(err, domain.ErrInvalidTransition):
+		return ErrInvalid
+	default:
+		return err
+	}
 }

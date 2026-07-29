@@ -8,6 +8,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/DryundeL/crypto-pay/internal/modules/invoice/internal/application/command"
+	"github.com/DryundeL/crypto-pay/internal/modules/invoice/internal/application/ports"
 	"github.com/DryundeL/crypto-pay/internal/modules/invoice/internal/application/query"
 	invoicehttp "github.com/DryundeL/crypto-pay/internal/modules/invoice/internal/delivery/http"
 	"github.com/DryundeL/crypto-pay/internal/modules/invoice/internal/domain"
@@ -30,18 +31,22 @@ type Module struct {
 }
 
 type Dependencies struct {
-	DB *gorm.DB
+	DB              *gorm.DB
+	AddressProvider ports.AddressProvider
 }
 
 func NewModule(deps Dependencies) *Module {
+	if deps.AddressProvider == nil {
+		panic("invoice: AddressProvider is required")
+	}
+
 	tx := transaction.NewGormManager(deps.DB)
 	outboxStore := outbox.NewStore(deps.DB)
 	publisher := write.NewOutboxPublisher(outboxStore)
 	repo := write.NewInvoiceRepository(deps.DB)
 	queries := read.NewInvoiceQueries(deps.DB)
-	addresses := write.NewStubAddressProvider()
 
-	createInvoice := command.NewCreateInvoiceHandler(repo, tx, publisher, addresses)
+	createInvoice := command.NewCreateInvoiceHandler(repo, tx, publisher, deps.AddressProvider)
 	cancelInvoice := command.NewCancelInvoiceHandler(repo, tx)
 	expireInvoice := command.NewExpireInvoiceHandler(repo, tx, publisher)
 	markConfirming := command.NewMarkConfirmingHandler(repo, tx)

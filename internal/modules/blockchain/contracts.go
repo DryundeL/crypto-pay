@@ -4,14 +4,14 @@ package blockchain
 type Network string
 
 const (
-	NetworkEVMSepolia   Network = "evm:sepolia"
+	NetworkEVMSepolia     Network = "evm:sepolia"
 	NetworkBitcoinRegtest Network = "btc:regtest"
 	NetworkBitcoinTestnet Network = "btc:testnet"
 )
 
 // AddressAllocation is a public result of depositing address creation.
 type AddressAllocation struct {
-	Network Network
-	Address string
+	Network        Network
+	Address        string
 	DerivationPath string
 }
