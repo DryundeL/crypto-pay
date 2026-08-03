@@ -54,6 +54,7 @@ func (h *CompleteWithdrawalHandler) Handle(ctx context.Context, cmd CompleteWith
 		}
 		if err := h.pub.Publish(ctx, "withdrawal", w.ID().String(), withdrawalCompletedEvent{
 			WithdrawalID: w.ID().String(),
+			MerchantID:   w.MerchantID(),
 			TxHash:       w.TxHash(),
 			OccurredAt:   now,
 		}); err != nil {

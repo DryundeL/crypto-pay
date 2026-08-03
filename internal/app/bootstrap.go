@@ -79,6 +79,14 @@ func Bootstrap() (*App, error) {
 		DB:     db,
 		Ledger: ledgerModule,
 	})
+	webhookModule := webhook.NewModule(webhook.Dependencies{
+		DB:            db,
+		Merchant:      merchantModule,
+		SigningSecret: cfg.App.JWTSecret,
+	})
+	notifier := webhookNotifier{webhooks: webhookModule}
+	invoiceModule.SetPaidNotifier(notifier)
+	withdrawalModule.SetCompletedNotifier(notifier)
 
 	api := e.Group("/api")
 	merchantModule.RegisterHTTP(api)
@@ -87,7 +95,7 @@ func Bootstrap() (*App, error) {
 	blockchainModule.RegisterHTTP(api, merchantModule.APIKeyAuthOnly())
 	ledgerModule.RegisterHTTP(api, merchantModule.APIKeyAuthOnly())
 	withdrawalModule.RegisterHTTP(api, merchantModule.APIKeyAuthOnly())
-	webhook.RegisterRoutes(api)
+	webhookModule.RegisterHTTP(api, merchantModule.APIKeyAuthOnly())
 
 	return &App{
 		Config: cfg,

@@ -56,7 +56,7 @@ Invoice становится paid
 | `blockchain` | Адреса + observation/confirm (scanner stub) | частично |
 | `ledger` | Учёт балансов (credit + balances) | частично |
 | `withdrawal` | Выводы (request + debit + complete facade) | частично |
-| `webhook` | Исходящие уведомления мерчанту | каркас |
+| `webhook` | Исходящие уведомления мерчанту (enqueue + retry delivery) | частично |
 
 ### Структура репозитория
 
@@ -65,7 +65,7 @@ cmd/
   crypto-pay/     # HTTP API
   migrator/       # миграции БД
   scanner/        # наблюдение за сетями (stub)
-  worker/         # outbox / webhooks / jobs (stub)
+  worker/         # webhook delivery loop
 
 internal/
   app/            # bootstrap, config
@@ -176,6 +176,22 @@ go run ./cmd/migrator -command=up
 
 Ключ хранится только как `SHA-256(pepper:plaintext)`; plaintext возвращается **один раз** при создании.
 
+### Webhook deliveries
+
+| Method | Path | Auth | Описание |
+|--------|------|------|----------|
+| `GET` | `/api/v1/webhook-deliveries` | API key | список доставок (`?status=&limit=`) |
+| `GET` | `/api/v1/webhook-deliveries/:id` | API key | одна доставка |
+
+События v1: `invoice.paid`, `withdrawal.completed` (если у мерчанта задан `webhook_url`).
+
+Доставка (worker):
+
+- `POST` на snapshot URL
+- headers: `X-Webhook-Event`, `X-Webhook-Delivery-Id`, `X-Webhook-Timestamp`, `X-Webhook-Signature: sha256=<hex>`
+- подпись: `HMAC-SHA256(JWT_SECRET, "{timestamp}.{body}")`
+- retry: 408/429/5xx + network, backoff; non-retryable 4xx / max attempts → `failed`
+
 Пример:
 
 ```bash
@@ -196,7 +212,7 @@ curl -s http://localhost:8080/api/v1/merchants/<merchant_id> \
 | `crypto-pay` | HTTP API |
 | `migrator` | применение / откат миграций |
 | `scanner` | blockchain observation (заглушка) |
-| `worker` | outbox relay, webhooks, фоновые job'ы (заглушка) |
+| `worker` | webhook delivery (`ProcessDue`), outbox relay (пока stub) |
 
 ## Разработка
 
@@ -209,8 +225,10 @@ go test ./...
 
 ## Roadmap (кратко)
 
+Подробный backlog до статуса «реализован» по всем BC: [docs/backlog-complete-modules.md](docs/backlog-complete-modules.md).
+
 1. Invoice + выделение депозитного адреса
 2. Blockchain scanner (EVM + Bitcoin)
 3. Payment confirmations → invoice paid
-4. Webhook delivery через worker + outbox/event bus
-5. Ledger / Withdrawal
+4. Outbox relay / event bus для async webhook enqueue
+5. Per-merchant webhook signing secrets

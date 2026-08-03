@@ -25,6 +25,7 @@ type Module struct {
 	findPendingByAddress *query.FindPendingByAddressHandler
 	markConfirming       *command.MarkConfirmingHandler
 	markPaid             *command.MarkPaidHandler
+	paidNotifier         PaidNotifier
 
 	// ExpireInvoice for worker / future jobs (no HTTP).
 	ExpireInvoice *command.ExpireInvoiceHandler
@@ -104,11 +105,29 @@ func (m *Module) MarkConfirming(ctx context.Context, invoiceID string) error {
 	return err
 }
 
+// SetPaidNotifier wires a post-paid side effect (e.g. webhook enqueue) at composition root.
+func (m *Module) SetPaidNotifier(n PaidNotifier) {
+	m.paidNotifier = n
+}
+
 // MarkPaid transitions invoice to paid and emits invoice.paid via outbox.
 func (m *Module) MarkPaid(ctx context.Context, invoiceID, txHash string) error {
-	err := m.markPaid.Handle(ctx, command.MarkPaid{InvoiceID: invoiceID, TxHash: txHash})
+	result, err := m.markPaid.Handle(ctx, command.MarkPaid{InvoiceID: invoiceID, TxHash: txHash})
 	if errors.Is(err, domain.ErrInvoiceNotFound) {
 		return ErrNotFound
 	}
-	return err
+	if err != nil {
+		return err
+	}
+	if m.paidNotifier != nil {
+		if err := m.paidNotifier.NotifyInvoicePaid(ctx, InvoicePaidNotification{
+			InvoiceID:  result.InvoiceID,
+			MerchantID: result.MerchantID,
+			TxHash:     result.TxHash,
+			OccurredAt: result.OccurredAt,
+		}); err != nil {
+			return err
+		}
+	}
+	return nil
 }

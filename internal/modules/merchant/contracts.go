@@ -1,5 +1,7 @@
 package merchant
 
+import "errors"
+
 // Public contracts of the Merchant bounded context.
 
 type ID string
@@ -19,3 +21,5 @@ const (
 	APIKeyStatusActive  APIKeyStatus = "active"
 	APIKeyStatusRevoked APIKeyStatus = "revoked"
 )
+
+var ErrNotFound = errors.New("merchant not found")

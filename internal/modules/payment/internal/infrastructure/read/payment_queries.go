@@ -35,7 +35,7 @@ type paymentDTORow struct {
 	UpdatedAt     time.Time `gorm:"column:updated_at"`
 }
 
-func (paymentDTORow) TableName() string { return "payment_payments" }
+func (paymentDTORow) TableName() string { return "payments" }
 
 func (q *PaymentQueries) GetPayment(ctx context.Context, paymentID, merchantID string) (query.PaymentDTO, error) {
 	var row paymentDTORow

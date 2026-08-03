@@ -1,1 +1,1 @@
-DROP TABLE IF EXISTS payment_payments;
+DROP TABLE IF EXISTS payments;

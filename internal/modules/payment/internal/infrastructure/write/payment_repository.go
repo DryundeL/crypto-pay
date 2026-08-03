@@ -35,7 +35,7 @@ type paymentRow struct {
 	UpdatedAt     time.Time `gorm:"column:updated_at"`
 }
 
-func (paymentRow) TableName() string { return "payment_payments" }
+func (paymentRow) TableName() string { return "payments" }
 
 func (r *PaymentRepository) Save(ctx context.Context, payment *domain.Payment) error {
 	db, err := transaction.DB(ctx, r.db)

@@ -25,5 +25,11 @@ CREATE INDEX IF NOT EXISTS idx_invoices_merchant_id
 CREATE INDEX IF NOT EXISTS idx_invoices_merchant_status
     ON invoices (merchant_id, status);
 
-CREATE INDEX IF NOT EXISTS idx_invoices_address
-    ON invoices (address);
+-- scanner: FindPendingByAddress(network, address)
+CREATE INDEX IF NOT EXISTS idx_invoices_network_address
+    ON invoices (network, address);
+
+-- worker: expire pending invoices by TTL
+CREATE INDEX IF NOT EXISTS idx_invoices_expires_at
+    ON invoices (expires_at)
+    WHERE status = 'pending';

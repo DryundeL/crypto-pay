@@ -34,7 +34,7 @@ type invoiceDTORow struct {
 	UpdatedAt  time.Time `gorm:"column:updated_at"`
 }
 
-func (invoiceDTORow) TableName() string { return "invoice_invoices" }
+func (invoiceDTORow) TableName() string { return "invoices" }
 
 func (q *InvoiceQueries) GetInvoice(ctx context.Context, invoiceID, merchantID string) (query.InvoiceDTO, error) {
 	var row invoiceDTORow

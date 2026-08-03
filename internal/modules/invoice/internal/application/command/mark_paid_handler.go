@@ -29,8 +29,9 @@ func NewMarkPaidHandler(
 	}
 }
 
-func (h *MarkPaidHandler) Handle(ctx context.Context, cmd MarkPaid) error {
-	return h.tx.WithinTransaction(ctx, func(ctx context.Context) error {
+func (h *MarkPaidHandler) Handle(ctx context.Context, cmd MarkPaid) (MarkPaidResult, error) {
+	var result MarkPaidResult
+	err := h.tx.WithinTransaction(ctx, func(ctx context.Context) error {
 		inv, err := h.repo.FindByID(ctx, domain.InvoiceID(cmd.InvoiceID))
 		if err != nil {
 			return err
@@ -44,11 +45,22 @@ func (h *MarkPaidHandler) Handle(ctx context.Context, cmd MarkPaid) error {
 			return fmt.Errorf("save invoice: %w", err)
 		}
 
-		return h.pub.Publish(ctx, "invoice", inv.ID().String(), invoicePaidEvent{
+		if err := h.pub.Publish(ctx, "invoice", inv.ID().String(), invoicePaidEvent{
 			InvoiceID:  inv.ID().String(),
 			MerchantID: inv.MerchantID(),
 			TxHash:     inv.TxHash(),
 			OccurredAt: now,
-		})
+		}); err != nil {
+			return err
+		}
+
+		result = MarkPaidResult{
+			InvoiceID:  inv.ID().String(),
+			MerchantID: inv.MerchantID(),
+			TxHash:     inv.TxHash(),
+			OccurredAt: now,
+		}
+		return nil
 	})
+	return result, err
 }

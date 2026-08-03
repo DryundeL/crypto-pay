@@ -1,13 +1,8 @@
-package webhook
+package command
 
 import "time"
 
-const (
-	EventWebhookDeliverySucceeded = "webhook.delivery_succeeded"
-	EventWebhookDeliveryFailed    = "webhook.delivery_failed"
-)
-
-type WebhookDeliverySucceeded struct {
+type deliverySucceededEvent struct {
 	DeliveryID  string    `json:"delivery_id"`
 	MerchantID  string    `json:"merchant_id"`
 	SourceEvent string    `json:"event_name"`
@@ -15,9 +10,9 @@ type WebhookDeliverySucceeded struct {
 	OccurredAt  time.Time `json:"occurred_at"`
 }
 
-func (WebhookDeliverySucceeded) EventName() string { return EventWebhookDeliverySucceeded }
+func (deliverySucceededEvent) EventName() string { return "webhook.delivery_succeeded" }
 
-type WebhookDeliveryFailed struct {
+type deliveryFailedEvent struct {
 	DeliveryID  string    `json:"delivery_id"`
 	MerchantID  string    `json:"merchant_id"`
 	SourceEvent string    `json:"event_name"`
@@ -26,4 +21,4 @@ type WebhookDeliveryFailed struct {
 	OccurredAt  time.Time `json:"occurred_at"`
 }
 
-func (WebhookDeliveryFailed) EventName() string { return EventWebhookDeliveryFailed }
+func (deliveryFailedEvent) EventName() string { return "webhook.delivery_failed" }

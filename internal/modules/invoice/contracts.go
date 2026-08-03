@@ -1,6 +1,10 @@
 package invoice
 
-import "errors"
+import (
+	"context"
+	"errors"
+	"time"
+)
 
 // Public contracts of the Invoice bounded context.
 // Other modules depend only on these types/interfaces, never on invoice/internal.
@@ -28,4 +32,17 @@ type InvoiceRef struct {
 	Network    string
 	Address    string
 	Status     string
+}
+
+// InvoicePaidNotification is a composition-root side-effect payload after MarkPaid.
+type InvoicePaidNotification struct {
+	InvoiceID  string
+	MerchantID string
+	TxHash     string
+	OccurredAt time.Time
+}
+
+// PaidNotifier is invoked by Module.MarkPaid after a successful transition.
+type PaidNotifier interface {
+	NotifyInvoicePaid(ctx context.Context, in InvoicePaidNotification) error
 }

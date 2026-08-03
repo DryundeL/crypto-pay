@@ -34,7 +34,7 @@ type invoiceRow struct {
 	UpdatedAt  time.Time `gorm:"column:updated_at"`
 }
 
-func (invoiceRow) TableName() string { return "invoice_invoices" }
+func (invoiceRow) TableName() string { return "invoices" }
 
 func (r *InvoiceRepository) Save(ctx context.Context, invoice *domain.Invoice) error {
 	db, err := transaction.DB(ctx, r.db)

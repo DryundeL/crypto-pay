@@ -15,6 +15,7 @@ func (withdrawalRequestedEvent) EventName() string { return "withdrawal.requeste
 
 type withdrawalCompletedEvent struct {
 	WithdrawalID string    `json:"withdrawal_id"`
+	MerchantID   string    `json:"merchant_id"`
 	TxHash       string    `json:"tx_hash"`
 	OccurredAt   time.Time `json:"occurred_at"`
 }

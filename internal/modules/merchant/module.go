@@ -1,12 +1,16 @@
 package merchant
 
 import (
+	"context"
+	"errors"
+
 	"github.com/labstack/echo/v4"
 	"gorm.io/gorm"
 
 	"github.com/DryundeL/crypto-pay/internal/modules/merchant/internal/application/command"
 	"github.com/DryundeL/crypto-pay/internal/modules/merchant/internal/application/query"
 	merchanthttp "github.com/DryundeL/crypto-pay/internal/modules/merchant/internal/delivery/http"
+	"github.com/DryundeL/crypto-pay/internal/modules/merchant/internal/domain"
 	"github.com/DryundeL/crypto-pay/internal/modules/merchant/internal/infrastructure/read"
 	"github.com/DryundeL/crypto-pay/internal/modules/merchant/internal/infrastructure/write"
 	"github.com/DryundeL/crypto-pay/internal/platform/outbox"
@@ -15,9 +19,10 @@ import (
 
 // Module is the Merchant bounded context composition root (within the module).
 type Module struct {
-	handler *merchanthttp.Handler
-	hasher  *write.APIKeyGenerator
-	auth    *read.APIKeyAuthenticator
+	handler     *merchanthttp.Handler
+	hasher      *write.APIKeyGenerator
+	auth        *read.APIKeyAuthenticator
+	getMerchant *query.GetMerchantHandler
 }
 
 type Dependencies struct {
@@ -48,8 +53,9 @@ func NewModule(deps Dependencies) *Module {
 			getMerchant,
 			listAPIKeys,
 		),
-		hasher: keyGen,
-		auth:   authenticator,
+		hasher:      keyGen,
+		auth:        authenticator,
+		getMerchant: getMerchant,
 	}
 }
 
@@ -73,4 +79,16 @@ func (m *Module) APIKeyMiddleware() echo.MiddlewareFunc {
 // Other modules (invoice, …) should use this.
 func (m *Module) APIKeyAuthOnly() echo.MiddlewareFunc {
 	return merchanthttp.APIKeyAuthOnly(m.hasher, m.auth)
+}
+
+// WebhookURL returns the merchant webhook endpoint URL (empty if not configured).
+func (m *Module) WebhookURL(ctx context.Context, merchantID string) (string, error) {
+	dto, err := m.getMerchant.Handle(ctx, query.GetMerchant{MerchantID: merchantID})
+	if err != nil {
+		if errors.Is(err, domain.ErrMerchantNotFound) {
+			return "", ErrNotFound
+		}
+		return "", err
+	}
+	return dto.WebhookURL, nil
 }

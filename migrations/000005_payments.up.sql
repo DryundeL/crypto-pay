@@ -1,6 +1,6 @@
 CREATE TABLE IF NOT EXISTS payments (
     id UUID PRIMARY KEY,
-    invoice_id UUID NOT NULL REFERENCES invoice_invoices (id),
+    invoice_id UUID NOT NULL REFERENCES invoices (id),
     merchant_id UUID NOT NULL REFERENCES merchants (id),
     status TEXT NOT NULL,
     network TEXT NOT NULL,
