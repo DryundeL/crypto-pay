@@ -1,10 +1,10 @@
-package ledger
+package command
 
 import "time"
 
-const EventEntryPosted = "ledger.entry_posted"
+// Integration event payloads for outbox (mirror public ledger.events contracts).
 
-type EntryPosted struct {
+type entryPostedEvent struct {
 	JournalID     string    `json:"journal_id"`
 	MerchantID    string    `json:"merchant_id"`
 	Amount        string    `json:"amount"`
@@ -14,4 +14,4 @@ type EntryPosted struct {
 	OccurredAt    time.Time `json:"occurred_at"`
 }
 
-func (EntryPosted) EventName() string { return EventEntryPosted }
+func (entryPostedEvent) EventName() string { return "ledger.entry_posted" }

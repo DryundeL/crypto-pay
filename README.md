@@ -54,7 +54,7 @@ Invoice становится paid
 | `invoice` | Счета на оплату | каркас |
 | `payment` | Обнаруженные платежи / confirmations | каркас |
 | `blockchain` | Адреса, сканеры EVM + BTC | каркас |
-| `ledger` | Учёт балансов | каркас |
+| `ledger` | Учёт балансов (credit + balances) | частично |
 | `withdrawal` | Выводы | каркас |
 | `webhook` | Исходящие уведомления мерчанту | каркас |
 
