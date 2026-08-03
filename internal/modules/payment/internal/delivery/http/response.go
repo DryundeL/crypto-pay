@@ -2,20 +2,6 @@ package http
 
 import "time"
 
-type observedRequest struct {
-	Network       string `json:"network"`
-	TxHash        string `json:"tx_hash"`
-	ToAddress     string `json:"to_address"`
-	Amount        string `json:"amount"`
-	Currency      string `json:"currency"`
-	Confirmations int    `json:"confirmations"`
-}
-
-type confirmedRequest struct {
-	Network string `json:"network"`
-	TxHash  string `json:"tx_hash"`
-}
-
 type paymentResponse struct {
 	ID            string    `json:"id"`
 	InvoiceID     string    `json:"invoice_id"`

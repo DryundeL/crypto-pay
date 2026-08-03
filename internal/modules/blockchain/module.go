@@ -4,12 +4,10 @@ import (
 	"context"
 	"sync"
 
-	"github.com/labstack/echo/v4"
 	"gorm.io/gorm"
 
 	"github.com/DryundeL/crypto-pay/internal/modules/blockchain/internal/application/command"
 	"github.com/DryundeL/crypto-pay/internal/modules/blockchain/internal/application/ports"
-	blockchainhttp "github.com/DryundeL/crypto-pay/internal/modules/blockchain/internal/delivery/http"
 	"github.com/DryundeL/crypto-pay/internal/modules/blockchain/internal/infrastructure/write"
 	"github.com/DryundeL/crypto-pay/internal/platform/outbox"
 	"github.com/DryundeL/crypto-pay/internal/platform/transaction"
@@ -17,8 +15,6 @@ import (
 
 // Module is the Blockchain bounded context composition root.
 type Module struct {
-	handler *blockchainhttp.Handler
-
 	allocate *command.AllocateAddressHandler
 	observe  *command.RecordObservationHandler
 	confirm  *command.ConfirmTransactionHandler
@@ -42,7 +38,6 @@ func NewModule(deps Dependencies) *Module {
 	confirm := command.NewConfirmTransactionHandler(txRepo, tx, publisher)
 
 	return &Module{
-		handler:  blockchainhttp.NewHandler(observe, confirm),
 		allocate: allocate,
 		observe:  observe,
 		confirm:  confirm,
@@ -57,13 +52,6 @@ func (m *Module) SetPaymentNotifier(n ports.PaymentNotifier) {
 	defer m.mu.Unlock()
 	m.observe.SetPaymentNotifier(n)
 	m.confirm.SetPaymentNotifier(n)
-}
-
-func (m *Module) RegisterHTTP(g *echo.Group, authMiddleware echo.MiddlewareFunc) {
-	blockchainhttp.RegisterRoutes(g, blockchainhttp.RouteDeps{
-		Handler:        m.handler,
-		AuthMiddleware: authMiddleware,
-	})
 }
 
 // AllocateAddress allocates (or returns existing) deposit address for an invoice.

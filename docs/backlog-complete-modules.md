@@ -14,26 +14,26 @@
 
 ## Фаза 0 — фундамент (без этого всё остальное врёт)
 
-### PR-0.1 Schema alignment
+### PR-0.1 Schema alignment ✅
 
 **Проблема:** код писал в `invoice_invoices` / `payment_payments`, миграции создавали `invoices` / `payments`; FK payments ссылался на несуществующую таблицу.
 
-**Сделать:**
+**Сделано:**
 
-- выровнять код и `000004`/`000005` на простые имена: `invoices`, `payments`
-- починить FK `payments.invoice_id → invoices(id)`
-- индекс `(network, address)` / `expires_at` где нужно для worker/scanner
+- [x] код и `000004`/`000005` на простых именах: `invoices`, `payments`
+- [x] FK `payments.invoice_id → invoices(id)`
+- [x] индексы `(network, address)` и partial `expires_at WHERE status = 'pending'`
 
 **Done when:** `go run ./cmd/crypto-pay` + create invoice/payment реально пишут/читают из Postgres.
 
-### PR-0.2 Закрыть simulate-оплату с API key
+### PR-0.2 Закрыть simulate-оплату с API key ✅
 
 Сейчас мерчант с API key может дергать observe/confirm и «оплатить» сам себя.
 
-**Сделать:**
+**Сделано:**
 
-- убрать публичные write-роуты blockchain/payment из merchant API **или** отдельный service-auth (внутренний token scanner/worker)
-- merchant API: только read (`GET invoice`, `GET payment`, balances, withdrawals, webhook-deliveries)
+- [x] убраны публичные write-роуты: `POST /payments/observed|confirmed`, весь blockchain HTTP
+- [x] observe/confirm остаются in-process (facade/`cmd/scanner`); merchant API: `GET /payments/:id` (+ invoice/ledger/withdrawal/webhook reads)
 
 **Done when:** внешний API key не может перевести invoice в paid.
 

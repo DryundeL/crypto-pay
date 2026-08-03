@@ -45,7 +45,7 @@ func NewModule(deps Dependencies) *Module {
 	getPayment := query.NewGetPaymentHandler(queries)
 
 	return &Module{
-		handler:        paymenthttp.NewHandler(recordObserved, confirm, getPayment),
+		handler:        paymenthttp.NewHandler(getPayment),
 		recordObserved: recordObserved,
 		confirm:        confirm,
 	}

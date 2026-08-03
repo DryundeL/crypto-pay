@@ -92,7 +92,6 @@ func Bootstrap() (*App, error) {
 	merchantModule.RegisterHTTP(api)
 	invoiceModule.RegisterHTTP(api, merchantModule.APIKeyAuthOnly())
 	paymentModule.RegisterHTTP(api, merchantModule.APIKeyAuthOnly())
-	blockchainModule.RegisterHTTP(api, merchantModule.APIKeyAuthOnly())
 	ledgerModule.RegisterHTTP(api, merchantModule.APIKeyAuthOnly())
 	withdrawalModule.RegisterHTTP(api, merchantModule.APIKeyAuthOnly())
 	webhookModule.RegisterHTTP(api, merchantModule.APIKeyAuthOnly())

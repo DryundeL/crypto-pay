@@ -7,10 +7,8 @@ type RouteDeps struct {
 	AuthMiddleware echo.MiddlewareFunc
 }
 
-// RegisterRoutes mounts Payment HTTP API.
+// RegisterRoutes mounts Payment HTTP API (merchant read-only).
 func RegisterRoutes(g *echo.Group, deps RouteDeps) {
 	payments := g.Group("/payments", deps.AuthMiddleware)
-	payments.POST("/observed", deps.Handler.RecordObserved)
-	payments.POST("/confirmed", deps.Handler.Confirm)
 	payments.GET("/:id", deps.Handler.GetPayment)
 }
