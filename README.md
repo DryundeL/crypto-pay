@@ -51,9 +51,9 @@ Invoice становится paid
 | Модуль | Назначение | Статус |
 |--------|------------|--------|
 | `merchant` | Мерчанты и API keys | реализован |
-| `invoice` | Счета на оплату | каркас |
-| `payment` | Обнаруженные платежи / confirmations | каркас |
-| `blockchain` | Адреса, сканеры EVM + BTC | каркас |
+| `invoice` | Счета на оплату (create/cancel/paid, адрес) | частично |
+| `payment` | Платежи (observed → confirmed → invoice paid) | частично |
+| `blockchain` | Адреса + observation/confirm (scanner stub) | частично |
 | `ledger` | Учёт балансов (credit + balances) | частично |
 | `withdrawal` | Выводы | каркас |
 | `webhook` | Исходящие уведомления мерчанту | каркас |
