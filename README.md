@@ -55,7 +55,7 @@ Invoice становится paid
 | `payment` | Платежи (observed → confirmed → invoice paid) | частично |
 | `blockchain` | Адреса + observation/confirm (scanner stub) | частично |
 | `ledger` | Учёт балансов (credit + balances) | частично |
-| `withdrawal` | Выводы | каркас |
+| `withdrawal` | Выводы (request + debit + complete facade) | частично |
 | `webhook` | Исходящие уведомления мерчанту | каркас |
 
 ### Структура репозитория

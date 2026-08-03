@@ -47,6 +47,22 @@ type PostParams struct {
 // Post creates a balanced 2-leg credit journal:
 // debit system clearing, credit merchant available.
 func Post(p PostParams) (*Journal, error) {
+	return post(p, []Entry{
+		{id: p.ClearingEntryID, accountID: p.ClearingAccountID, side: SideDebit, amount: p.Amount},
+		{id: p.MerchantEntryID, accountID: p.MerchantAccountID, side: SideCredit, amount: p.Amount},
+	})
+}
+
+// PostDebit creates a balanced 2-leg debit journal:
+// debit merchant available, credit system clearing.
+func PostDebit(p PostParams) (*Journal, error) {
+	return post(p, []Entry{
+		{id: p.MerchantEntryID, accountID: p.MerchantAccountID, side: SideDebit, amount: p.Amount},
+		{id: p.ClearingEntryID, accountID: p.ClearingAccountID, side: SideCredit, amount: p.Amount},
+	})
+}
+
+func post(p PostParams, entries []Entry) (*Journal, error) {
 	if p.ID.IsZero() {
 		return nil, fmt.Errorf("%w: id is required", ErrInvalidJournal)
 	}
@@ -80,21 +96,6 @@ func Post(p PostParams) (*Journal, error) {
 	}
 	if p.ClearingAccountID == p.MerchantAccountID {
 		return nil, fmt.Errorf("%w: accounts must differ", ErrInvalidJournal)
-	}
-
-	entries := []Entry{
-		{
-			id:        p.ClearingEntryID,
-			accountID: p.ClearingAccountID,
-			side:      SideDebit,
-			amount:    p.Amount,
-		},
-		{
-			id:        p.MerchantEntryID,
-			accountID: p.MerchantAccountID,
-			side:      SideCredit,
-			amount:    p.Amount,
-		},
 	}
 	if err := assertBalanced(entries); err != nil {
 		return nil, err

@@ -141,6 +141,38 @@ func TestAccountApplyCreditIncreasesAvailable(t *testing.T) {
 	}
 }
 
+func TestPostDebitJournalBalanced(t *testing.T) {
+	now := time.Date(2026, 8, 3, 12, 0, 0, 0, time.UTC)
+	money, err := domain.NewMoney("3", "USDT")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	j, err := domain.PostDebit(domain.PostParams{
+		ID:                "j-debit",
+		IdempotencyKey:    "withdrawal_debit:wd-1",
+		MerchantID:        "m-1",
+		Amount:            money,
+		ReferenceType:     "withdrawal",
+		ReferenceID:       "wd-1",
+		ClearingAccountID: "acc-clearing",
+		MerchantAccountID: "acc-merchant",
+		ClearingEntryID:   "e-1",
+		MerchantEntryID:   "e-2",
+		Now:               now,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	entries := j.Entries()
+	if entries[0].Side() != domain.SideDebit || entries[0].AccountID() != "acc-merchant" {
+		t.Fatalf("first entry = %s %s", entries[0].Side(), entries[0].AccountID())
+	}
+	if entries[1].Side() != domain.SideCredit || entries[1].AccountID() != "acc-clearing" {
+		t.Fatalf("second entry = %s %s", entries[1].Side(), entries[1].AccountID())
+	}
+}
+
 func TestClearingDebitIncreasesBalance(t *testing.T) {
 	now := time.Now().UTC()
 	acc, err := domain.CreateAccount(domain.CreateAccountParams{

@@ -1,13 +1,8 @@
-package withdrawal
+package command
 
 import "time"
 
-const (
-	EventWithdrawalRequested = "withdrawal.requested"
-	EventWithdrawalCompleted = "withdrawal.completed"
-)
-
-type WithdrawalRequested struct {
+type withdrawalRequestedEvent struct {
 	WithdrawalID string    `json:"withdrawal_id"`
 	MerchantID   string    `json:"merchant_id"`
 	Amount       string    `json:"amount"`
@@ -16,12 +11,12 @@ type WithdrawalRequested struct {
 	OccurredAt   time.Time `json:"occurred_at"`
 }
 
-func (WithdrawalRequested) EventName() string { return EventWithdrawalRequested }
+func (withdrawalRequestedEvent) EventName() string { return "withdrawal.requested" }
 
-type WithdrawalCompleted struct {
+type withdrawalCompletedEvent struct {
 	WithdrawalID string    `json:"withdrawal_id"`
 	TxHash       string    `json:"tx_hash"`
 	OccurredAt   time.Time `json:"occurred_at"`
 }
 
-func (WithdrawalCompleted) EventName() string { return EventWithdrawalCompleted }
+func (withdrawalCompletedEvent) EventName() string { return "withdrawal.completed" }

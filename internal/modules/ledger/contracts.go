@@ -43,6 +43,22 @@ type PostJournalResult struct {
 	Created   bool
 }
 
+// PostDebitJournalInput is the sync facade command for posting a debit journal.
+type PostDebitJournalInput struct {
+	IdempotencyKey string
+	MerchantID     string
+	Amount         string
+	Currency       string
+	ReferenceType  string
+	ReferenceID    string
+}
+
+// PostDebitJournalResult is returned by Module.PostDebitJournal.
+type PostDebitJournalResult struct {
+	JournalID string
+	Created   bool
+}
+
 var (
 	ErrNotFound            = errors.New("ledger resource not found")
 	ErrInvalidInput        = errors.New("invalid ledger input")

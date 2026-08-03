@@ -1,2 +1,2 @@
-// Package application contains Withdrawal use-cases (CQRS).
+// Package application contains Withdrawal CQRS use-cases.
 package application

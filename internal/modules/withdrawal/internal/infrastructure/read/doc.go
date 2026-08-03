@@ -1,2 +1,2 @@
-// Package read contains Withdrawal read-model queries (DTO from PostgreSQL).
+// Package read contains Withdrawal read-model queries (DTO).
 package read

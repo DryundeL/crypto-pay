@@ -149,3 +149,75 @@ func TestPostJournalRejectsBadAmount(t *testing.T) {
 		t.Fatalf("err = %v", err)
 	}
 }
+
+func TestPostDebitJournalCreditThenDebit(t *testing.T) {
+	accounts := &memAccounts{}
+	journals := &memJournals{}
+	credit := command.NewPostJournalHandler(accounts, journals, noopTX{}, &memPub{})
+	debit := command.NewPostDebitJournalHandler(accounts, journals, noopTX{}, &memPub{})
+	merchantID := "11111111-1111-1111-1111-111111111111"
+
+	if _, err := credit.Handle(context.Background(), command.PostJournal{
+		IdempotencyKey: "invoice_paid:inv-1",
+		MerchantID:     merchantID,
+		Amount:         "2",
+		Currency:       "ETH",
+		ReferenceType:  "invoice",
+		ReferenceID:    "inv-1",
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	res, err := debit.Handle(context.Background(), command.PostDebitJournal{
+		IdempotencyKey: "withdrawal_debit:wd-1",
+		MerchantID:     merchantID,
+		Amount:         "1.5",
+		Currency:       "ETH",
+		ReferenceType:  "withdrawal",
+		ReferenceID:    "wd-1",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !res.Created {
+		t.Fatal("expected debit journal created")
+	}
+
+	acc, err := accounts.FindByKey(context.Background(), domain.OwnerMerchant, merchantID, domain.KindAvailable, "ETH")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if acc.Balance().Amount() != "0.5" {
+		t.Fatalf("balance = %s, want 0.5", acc.Balance().Amount())
+	}
+
+	again, err := debit.Handle(context.Background(), command.PostDebitJournal{
+		IdempotencyKey: "withdrawal_debit:wd-1",
+		MerchantID:     merchantID,
+		Amount:         "1.5",
+		Currency:       "ETH",
+		ReferenceType:  "withdrawal",
+		ReferenceID:    "wd-1",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if again.Created || again.JournalID != res.JournalID {
+		t.Fatalf("idempotent retry failed: %+v", again)
+	}
+}
+
+func TestPostDebitJournalInsufficientBalance(t *testing.T) {
+	h := command.NewPostDebitJournalHandler(&memAccounts{}, &memJournals{}, noopTX{}, &memPub{})
+	_, err := h.Handle(context.Background(), command.PostDebitJournal{
+		IdempotencyKey: "withdrawal_debit:wd-2",
+		MerchantID:     "11111111-1111-1111-1111-111111111111",
+		Amount:         "1",
+		Currency:       "ETH",
+		ReferenceType:  "withdrawal",
+		ReferenceID:    "wd-2",
+	})
+	if !errors.Is(err, domain.ErrInsufficientBalance) {
+		t.Fatalf("err = %v, want ErrInsufficientBalance", err)
+	}
+}

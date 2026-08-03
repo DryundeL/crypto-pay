@@ -19,8 +19,9 @@ import (
 
 // Module is the Ledger bounded context composition root.
 type Module struct {
-	handler     *ledgerhttp.Handler
-	postJournal *command.PostJournalHandler
+	handler          *ledgerhttp.Handler
+	postJournal      *command.PostJournalHandler
+	postDebitJournal *command.PostDebitJournalHandler
 }
 
 type Dependencies struct {
@@ -40,12 +41,14 @@ func NewModule(deps Dependencies) *Module {
 	queries := read.NewLedgerQueries(deps.DB)
 
 	postJournal := command.NewPostJournalHandler(accounts, journals, tx, publisher)
+	postDebitJournal := command.NewPostDebitJournalHandler(accounts, journals, tx, publisher)
 	listBalances := query.NewListBalancesHandler(queries)
 	listJournals := query.NewListJournalsHandler(queries)
 
 	return &Module{
-		handler:     ledgerhttp.NewHandler(listBalances, listJournals),
-		postJournal: postJournal,
+		handler:          ledgerhttp.NewHandler(listBalances, listJournals),
+		postJournal:      postJournal,
+		postDebitJournal: postDebitJournal,
 	}
 }
 
@@ -73,6 +76,26 @@ func (m *Module) PostJournal(ctx context.Context, in PostJournalInput) (PostJour
 		return PostJournalResult{}, mapPublicError(err)
 	}
 	return PostJournalResult{
+		JournalID: result.JournalID,
+		Created:   result.Created,
+	}, nil
+}
+
+// PostDebitJournal posts a balanced debit journal (debit merchant available / credit clearing).
+// Idempotent on IdempotencyKey — retries return the existing journal.
+func (m *Module) PostDebitJournal(ctx context.Context, in PostDebitJournalInput) (PostDebitJournalResult, error) {
+	result, err := m.postDebitJournal.Handle(ctx, command.PostDebitJournal{
+		IdempotencyKey: in.IdempotencyKey,
+		MerchantID:     in.MerchantID,
+		Amount:         in.Amount,
+		Currency:       in.Currency,
+		ReferenceType:  in.ReferenceType,
+		ReferenceID:    in.ReferenceID,
+	})
+	if err != nil {
+		return PostDebitJournalResult{}, mapPublicError(err)
+	}
+	return PostDebitJournalResult{
 		JournalID: result.JournalID,
 		Created:   result.Created,
 	}, nil
