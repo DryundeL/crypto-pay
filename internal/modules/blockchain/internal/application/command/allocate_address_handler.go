@@ -13,13 +13,18 @@ import (
 )
 
 type AllocateAddressHandler struct {
-	repo domain.AddressRepository
-	tx   ports.TransactionManager
-	now  func() time.Time
+	repo    domain.AddressRepository
+	tx      ports.TransactionManager
+	deriver domain.AddressDeriver
+	now     func() time.Time
 }
 
-func NewAllocateAddressHandler(repo domain.AddressRepository, tx ports.TransactionManager) *AllocateAddressHandler {
-	return &AllocateAddressHandler{repo: repo, tx: tx, now: time.Now}
+func NewAllocateAddressHandler(
+	repo domain.AddressRepository,
+	tx ports.TransactionManager,
+	deriver domain.AddressDeriver,
+) *AllocateAddressHandler {
+	return &AllocateAddressHandler{repo: repo, tx: tx, deriver: deriver, now: time.Now}
 }
 
 type AllocateAddressResult struct {
@@ -70,7 +75,10 @@ func (h *AllocateAddressHandler) Handle(ctx context.Context, cmd AllocateAddress
 		if err != nil {
 			return err
 		}
-		addr, path, err := domain.DeriveAddress(cmd.Network, index, cmd.InvoiceID)
+		if h.deriver == nil {
+			return fmt.Errorf("%w: address deriver is required", domain.ErrInvalidBlockchain)
+		}
+		addr, path, err := h.deriver.Derive(cmd.Network, index)
 		if err != nil {
 			return err
 		}

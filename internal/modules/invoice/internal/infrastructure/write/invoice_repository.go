@@ -105,3 +105,30 @@ func (r *InvoiceRepository) FindByID(ctx context.Context, id domain.InvoiceID) (
 		row.UpdatedAt,
 	), nil
 }
+
+func (r *InvoiceRepository) ListExpiredPendingIDs(ctx context.Context, now time.Time, limit int) ([]domain.InvoiceID, error) {
+	db, err := transaction.DB(ctx, r.db)
+	if err != nil {
+		return nil, err
+	}
+	if limit <= 0 {
+		limit = 100
+	}
+
+	var ids []string
+	err = db.Model(&invoiceRow{}).
+		Select("id").
+		Where("status = ? AND expires_at < ?", domain.StatusPending.String(), now.UTC()).
+		Order("expires_at ASC").
+		Limit(limit).
+		Pluck("id", &ids).Error
+	if err != nil {
+		return nil, fmt.Errorf("list expired pending invoices: %w", err)
+	}
+
+	out := make([]domain.InvoiceID, 0, len(ids))
+	for _, id := range ids {
+		out = append(out, domain.InvoiceID(id))
+	}
+	return out, nil
+}

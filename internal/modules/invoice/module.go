@@ -26,9 +26,7 @@ type Module struct {
 	markConfirming       *command.MarkConfirmingHandler
 	markPaid             *command.MarkPaidHandler
 	paidNotifier         PaidNotifier
-
-	// ExpireInvoice for worker / future jobs (no HTTP).
-	ExpireInvoice *command.ExpireInvoiceHandler
+	expireDue            *command.ExpireDueHandler
 }
 
 type Dependencies struct {
@@ -37,6 +35,9 @@ type Dependencies struct {
 }
 
 func NewModule(deps Dependencies) *Module {
+	if deps.DB == nil {
+		panic("invoice: DB is required")
+	}
 	if deps.AddressProvider == nil {
 		panic("invoice: AddressProvider is required")
 	}
@@ -50,6 +51,7 @@ func NewModule(deps Dependencies) *Module {
 	createInvoice := command.NewCreateInvoiceHandler(repo, tx, publisher, deps.AddressProvider)
 	cancelInvoice := command.NewCancelInvoiceHandler(repo, tx)
 	expireInvoice := command.NewExpireInvoiceHandler(repo, tx, publisher)
+	expireDue := command.NewExpireDueHandler(repo, expireInvoice)
 	markConfirming := command.NewMarkConfirmingHandler(repo, tx)
 	markPaid := command.NewMarkPaidHandler(repo, tx, publisher)
 	getInvoice := query.NewGetInvoiceHandler(queries)
@@ -60,7 +62,7 @@ func NewModule(deps Dependencies) *Module {
 		findPendingByAddress: findPending,
 		markConfirming:       markConfirming,
 		markPaid:             markPaid,
-		ExpireInvoice:        expireInvoice,
+		expireDue:            expireDue,
 	}
 }
 
@@ -132,4 +134,16 @@ func (m *Module) MarkPaid(ctx context.Context, invoiceID, txHash string) error {
 		}
 	}
 	return nil
+}
+
+// ExpireDue expires pending invoices whose TTL has elapsed (sync facade for worker).
+func (m *Module) ExpireDue(ctx context.Context, limit int) (ExpireDueResult, error) {
+	result, err := m.expireDue.Handle(ctx, command.ExpireDue{Limit: limit})
+	if err != nil {
+		return ExpireDueResult{}, err
+	}
+	return ExpireDueResult{
+		Expired: result.Expired,
+		Skipped: result.Skipped,
+	}, nil
 }

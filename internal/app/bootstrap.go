@@ -66,8 +66,9 @@ func Bootstrap() (*App, error) {
 		APIKeyPepper: cfg.App.JWTSecret,
 	})
 	blockchainModule := blockchain.NewModule(blockchain.Dependencies{
-		DB:            db,
-		Confirmations: confirmations,
+		DB:             db,
+		Confirmations:  confirmations,
+		EVMSepoliaXPub: cfg.EVM.SepoliaXPub,
 	})
 	invoiceModule := invoice.NewModule(invoice.Dependencies{
 		DB:              db,
@@ -90,7 +91,7 @@ func Bootstrap() (*App, error) {
 		Merchant:      merchantModule,
 		SigningSecret: cfg.App.JWTSecret,
 	})
-	notifier := sideEffectNotifier{ledger: ledgerModule, webhooks: webhookModule}
+	notifier := NewSideEffectNotifier(ledgerModule, webhookModule)
 	invoiceModule.SetPaidNotifier(notifier)
 	withdrawalModule.SetCompletedNotifier(notifier)
 

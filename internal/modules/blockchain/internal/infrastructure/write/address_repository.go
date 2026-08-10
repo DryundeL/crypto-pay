@@ -57,6 +57,41 @@ func (r *AddressRepository) FindByNetworkInvoice(ctx context.Context, network, i
 	), nil
 }
 
+func (r *AddressRepository) FindByNetworkAddress(ctx context.Context, network, address string) (*domain.AllocatedAddress, error) {
+	db, err := transaction.DB(ctx, r.db)
+	if err != nil {
+		return nil, err
+	}
+	var row addressRow
+	if err := db.Where("network = ? AND lower(address) = lower(?)", network, address).First(&row).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, domain.ErrAddressNotFound
+		}
+		return nil, fmt.Errorf("load address by address: %w", err)
+	}
+	return domain.RestoreAllocatedAddress(
+		row.ID, row.Network, row.Address, row.DerivationPath, row.InvoiceID, row.Currency, row.CreatedAt,
+	), nil
+}
+
+func (r *AddressRepository) ListByNetwork(ctx context.Context, network string) ([]*domain.AllocatedAddress, error) {
+	db, err := transaction.DB(ctx, r.db)
+	if err != nil {
+		return nil, err
+	}
+	var rows []addressRow
+	if err := db.Where("network = ?", network).Find(&rows).Error; err != nil {
+		return nil, fmt.Errorf("list addresses: %w", err)
+	}
+	out := make([]*domain.AllocatedAddress, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, domain.RestoreAllocatedAddress(
+			row.ID, row.Network, row.Address, row.DerivationPath, row.InvoiceID, row.Currency, row.CreatedAt,
+		))
+	}
+	return out, nil
+}
+
 func (r *AddressRepository) Save(ctx context.Context, addr *domain.AllocatedAddress) error {
 	db, err := transaction.DB(ctx, r.db)
 	if err != nil {

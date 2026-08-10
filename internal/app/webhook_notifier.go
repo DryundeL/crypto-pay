@@ -25,6 +25,11 @@ type sideEffectNotifier struct {
 	webhooks deliveryEnqueuer
 }
 
+// NewSideEffectNotifier builds the sync paid/completed notifier used by API and scanner.
+func NewSideEffectNotifier(ledgerModule *ledger.Module, webhookModule *webhook.Module) sideEffectNotifier {
+	return sideEffectNotifier{ledger: ledgerModule, webhooks: webhookModule}
+}
+
 func (n sideEffectNotifier) NotifyInvoicePaid(ctx context.Context, in invoice.InvoicePaidNotification) error {
 	if _, err := n.ledger.PostJournal(ctx, ledger.PostJournalInput{
 		IdempotencyKey: fmt.Sprintf("invoice_paid:%s", in.InvoiceID),

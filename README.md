@@ -51,10 +51,10 @@ Invoice становится paid
 | Модуль | Назначение | Статус |
 |--------|------------|--------|
 | `merchant` | Мерчанты и API keys | реализован |
-| `invoice` | Счета на оплату (create/cancel/paid, адрес) | частично |
-| `payment` | Платежи (observed → confirmed → invoice paid) | частично |
-| `blockchain` | Адреса + observation/confirm (scanner stub) | частично |
-| `ledger` | Учёт балансов (credit + balances) | частично |
+| `invoice` | Счета на оплату (create/cancel/paid/expire, адрес) | реализован |
+| `payment` | Платежи (observed → confirmed → invoice paid) | реализован |
+| `blockchain` | HD-адреса (EVM xpub) + Sepolia scanner | реализован |
+| `ledger` | Учёт балансов (credit + balances) | реализован |
 | `withdrawal` | Выводы (request + debit + complete facade) | частично |
 | `webhook` | Исходящие уведомления мерчанту (enqueue + retry delivery) | частично |
 
@@ -64,8 +64,8 @@ Invoice становится paid
 cmd/
   crypto-pay/     # HTTP API
   migrator/       # миграции БД
-  scanner/        # наблюдение за сетями (stub)
-  worker/         # webhook delivery loop
+  scanner/        # EVM Sepolia observation
+  worker/         # expire invoices + webhook delivery
 
 internal/
   app/            # bootstrap, config
@@ -114,6 +114,17 @@ DB_SSLMODE=disable
 
 # минимум 32 символа; также используется как pepper для API keys
 JWT_SECRET=change-me-to-a-long-random-secret-key
+
+# EVM Sepolia deposit addresses (account xpub at m/44'/60'/0')
+# Path used: m/44'/60'/0'/0/{index}. Private keys never enter the process.
+EVM_SEPOLIA_XPUB=
+
+# Scanner (cmd/scanner) — required for on-chain observation
+EVM_SEPOLIA_RPC_URL=
+# EVM_SEPOLIA_START_BLOCK=0
+# SCANNER_POLL_INTERVAL=3s
+# SCANNER_BLOCK_BATCH=20
+# CONFIRMATION_THRESHOLDS=evm:sepolia=1
 ```
 
 ### Локальный запуск
@@ -211,8 +222,8 @@ curl -s http://localhost:8080/api/v1/merchants/<merchant_id> \
 |--------|------|
 | `crypto-pay` | HTTP API |
 | `migrator` | применение / откат миграций |
-| `scanner` | blockchain observation (заглушка) |
-| `worker` | webhook delivery (`ProcessDue`), outbox relay (пока stub) |
+| `scanner` | EVM Sepolia poll → observe/confirm |
+| `worker` | expire due invoices + webhook delivery (`ProcessDue`); outbox relay (пока stub) |
 
 ## Разработка
 
@@ -227,8 +238,6 @@ go test ./...
 
 Подробный backlog до статуса «реализован» по всем BC: [docs/backlog-complete-modules.md](docs/backlog-complete-modules.md).
 
-1. Invoice + выделение депозитного адреса
-2. Blockchain scanner (EVM + Bitcoin)
-3. Payment confirmations → invoice paid
-4. Outbox relay / event bus для async webhook enqueue
-5. Per-merchant webhook signing secrets
+Фаза 1 (money-in) закрыта: ledger credit, confirmation policy, expire job, Sepolia scanner + HD xpub.
+
+Дальше: outbox relay / async webhooks, per-merchant secrets, withdrawal pipeline.

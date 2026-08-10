@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/joho/godotenv"
@@ -13,6 +15,23 @@ type Config struct {
 	Database      DatabaseConfig
 	App           AppConfig
 	Confirmations map[string]int
+	EVM           EVMConfig
+	Scanner       ScannerConfig
+}
+
+// EVMConfig holds deposit-address derivation settings for EVM networks.
+type EVMConfig struct {
+	// SepoliaXPub is an account-level extended public key at m/44'/60'/0'.
+	// Child path used for deposits: m/44'/60'/0'/0/{index}.
+	SepoliaXPub string
+}
+
+// ScannerConfig holds cmd/scanner poll settings.
+type ScannerConfig struct {
+	SepoliaRPCURL     string
+	SepoliaStartBlock uint64
+	PollInterval      time.Duration
+	BlockBatch        int
 }
 
 type DatabaseConfig struct {
@@ -63,6 +82,19 @@ func LoadConfig() (*Config, error) {
 		return nil, fmt.Errorf("CONFIRMATION_THRESHOLDS: %w", err)
 	}
 
+	pollInterval, err := parseDurationEnv("SCANNER_POLL_INTERVAL", 3*time.Second)
+	if err != nil {
+		return nil, err
+	}
+	blockBatch, err := parsePositiveIntEnv("SCANNER_BLOCK_BATCH", 20)
+	if err != nil {
+		return nil, err
+	}
+	startBlock, err := parseUint64Env("EVM_SEPOLIA_START_BLOCK", 0)
+	if err != nil {
+		return nil, err
+	}
+
 	cfg := &Config{
 		Database: DatabaseConfig{
 			Host:     getEnv("DB_HOST", "localhost"),
@@ -74,6 +106,15 @@ func LoadConfig() (*Config, error) {
 		},
 		App:           appCfg,
 		Confirmations: mergeConfirmationThresholds(DefaultConfirmationThresholds(appCfg.Env), overrides),
+		EVM: EVMConfig{
+			SepoliaXPub: getEnv("EVM_SEPOLIA_XPUB", ""),
+		},
+		Scanner: ScannerConfig{
+			SepoliaRPCURL:     getEnv("EVM_SEPOLIA_RPC_URL", ""),
+			SepoliaStartBlock: startBlock,
+			PollInterval:      pollInterval,
+			BlockBatch:        blockBatch,
+		},
 	}
 
 	if err := cfg.Validate(); err != nil {
@@ -110,6 +151,42 @@ func getEnv(key, defaultValue string) string {
 		return value
 	}
 	return defaultValue
+}
+
+func parseDurationEnv(key string, defaultValue time.Duration) (time.Duration, error) {
+	raw := strings.TrimSpace(os.Getenv(key))
+	if raw == "" {
+		return defaultValue, nil
+	}
+	d, err := time.ParseDuration(raw)
+	if err != nil || d <= 0 {
+		return 0, fmt.Errorf("%s must be a positive duration", key)
+	}
+	return d, nil
+}
+
+func parsePositiveIntEnv(key string, defaultValue int) (int, error) {
+	raw := strings.TrimSpace(os.Getenv(key))
+	if raw == "" {
+		return defaultValue, nil
+	}
+	n, err := strconv.Atoi(raw)
+	if err != nil || n < 1 {
+		return 0, fmt.Errorf("%s must be an integer >= 1", key)
+	}
+	return n, nil
+}
+
+func parseUint64Env(key string, defaultValue uint64) (uint64, error) {
+	raw := strings.TrimSpace(os.Getenv(key))
+	if raw == "" {
+		return defaultValue, nil
+	}
+	n, err := strconv.ParseUint(raw, 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("%s must be an unsigned integer", key)
+	}
+	return n, nil
 }
 
 func getBuildVersion() string {

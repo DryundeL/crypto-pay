@@ -41,50 +41,51 @@
 
 ## Фаза 1 — money-in happy path
 
-### PR-1.1 Ledger credit on paid
+### PR-1.1 Ledger credit on paid ✅
 
-**Сделать:**
+**Сделано:**
 
-- sync notifier / outbox consumer: `invoice.paid` → `ledger.PostCreditJournal` (idempotency `invoice_paid:{invoice_id}`)
-- wiring в bootstrap (как webhook notifier) **или** сразу через outbox consumer из фазы 2
+- [x] sync notifier: `invoice.paid` → `ledger.PostJournal` (idempotency `invoice_paid:{invoice_id}`)
+- [x] wiring в bootstrap / scanner через `app.NewSideEffectNotifier` (фаза 2 перенесёт в outbox consumer)
 
 **Done when:** после paid у мерчанта растёт available balance; повтор paid/credit идемпотентен.
 
-### PR-1.2 Confirmation policy
+### PR-1.2 Confirmation policy ✅
 
-**Сделать:**
+**Сделано:**
 
-- конфиг порогов: `evm:sepolia=1`, `bitcoin:regtest=1`, prod-значения отдельно
-- `Confirm` только если `confirmations >= required`
-- обновлять `confirmations` на повторных observations (не только status flip)
+- [x] конфиг порогов: `evm:sepolia=1`, `btc:regtest=1` (dev/staging); prod-значения отдельно; override `CONFIRMATION_THRESHOLDS`
+- [x] `Confirm` только если `confirmations >= required`
+- [x] обновлять `confirmations` на повторных observations (не только status flip)
 
 **Done when:** invoice не становится paid на 0 confirmations.
 
-### PR-1.3 Invoice expire job
+### PR-1.3 Invoice expire job ✅
 
-**Сделать:**
+**Сделано:**
 
-- в `cmd/worker`: poll `expires_at < now AND status=pending` → `ExpireInvoice`
-- индекс по `(status, expires_at)`
-- опционально webhook `invoice.expired` (можно v1.1)
+- [x] в `cmd/worker`: poll `expires_at < now AND status=pending` → `ExpireInvoice`
+- [x] индекс по `(status, expires_at)` (`000010`)
+- [ ] опционально webhook `invoice.expired` (v1.1)
 
 **Done when:** просроченный invoice уходит в `expired` без ручного вызова.
 
-### PR-1.4 Scanner v1 (хотя бы одна сеть)
+### PR-1.4 Scanner v1 (хотя бы одна сеть) ✅
 
-Минимум для «не stub»:
+**Сделано:**
 
 **EVM Sepolia:**
 
-- RPC poll новых блоков / logs
-- match watched addresses из `blockchain_addresses`
-- вызов `payment.RecordObserved` / `Confirm` по policy
-- cursor/checkpoint последнего блока в БД
-- reorg: на v1 достаточно «не confirm до N блоков» (deep reorg later)
+- [x] RPC poll новых блоков (`cmd/scanner` + `ethclient`)
+- [x] match watched addresses из `blockchain_addresses`
+- [x] вызов `blockchain.RecordObservation` / `ConfirmTransaction` → payment по policy
+- [x] cursor/checkpoint в `blockchain_scan_cursors` (`000011`)
+- [x] reorg v1: scan tip lagged на `required-1` блоков (deep reorg later)
 
 **Адреса:**
 
-- заменить hash-placeholder на реальное HD/derivation (хотя бы deterministic xpub/path) **или** честно задокументировать custodial hot-wallet pool
+- [x] EVM: HD из account-level xpub (`EVM_SEPOLIA_XPUB`, path `m/44'/60'/0'/0/{index}`)
+- [x] BTC: hash-placeholder до Bitcoin scanner
 
 **Done when:** перевод на выданный адрес в testnet → invoice paid без HTTP simulate.
 

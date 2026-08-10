@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/big"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -80,7 +82,7 @@ func (h *RecordObservedHandler) Handle(ctx context.Context, cmd RecordObserved) 
 	if ref.MerchantID != cmd.MerchantID {
 		return RecordObservedResult{}, domain.ErrPaymentNotFound
 	}
-	if ref.Amount != cmd.Amount || ref.Currency != cmd.Currency {
+	if !amountsEqual(ref.Amount, cmd.Amount) || !currenciesEqual(ref.Currency, cmd.Currency) {
 		return RecordObservedResult{}, fmt.Errorf("%w: amount/currency mismatch", domain.ErrInvalidPayment)
 	}
 
@@ -180,4 +182,17 @@ func validateNetwork(network string) error {
 	default:
 		return fmt.Errorf("%w: unsupported network", domain.ErrInvalidPayment)
 	}
+}
+
+func amountsEqual(a, b string) bool {
+	ra, okA := new(big.Rat).SetString(strings.TrimSpace(a))
+	rb, okB := new(big.Rat).SetString(strings.TrimSpace(b))
+	if !okA || !okB {
+		return strings.TrimSpace(a) == strings.TrimSpace(b)
+	}
+	return ra.Cmp(rb) == 0
+}
+
+func currenciesEqual(a, b string) bool {
+	return strings.EqualFold(strings.TrimSpace(a), strings.TrimSpace(b))
 }

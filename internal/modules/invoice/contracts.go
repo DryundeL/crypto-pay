@@ -48,3 +48,9 @@ type InvoicePaidNotification struct {
 type PaidNotifier interface {
 	NotifyInvoicePaid(ctx context.Context, in InvoicePaidNotification) error
 }
+
+// ExpireDueResult is returned by Module.ExpireDue.
+type ExpireDueResult struct {
+	Expired int
+	Skipped int
+}
