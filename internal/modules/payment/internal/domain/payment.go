@@ -125,6 +125,19 @@ func (p *Payment) Status() Status       { return p.status }
 func (p *Payment) CreatedAt() time.Time { return p.createdAt }
 func (p *Payment) UpdatedAt() time.Time { return p.updatedAt }
 
+// UpdateConfirmations raises the confirmation count (never decreases).
+func (p *Payment) UpdateConfirmations(confirmations int, now time.Time) error {
+	if confirmations < 0 {
+		return fmt.Errorf("%w: confirmations must be >= 0", ErrInvalidPayment)
+	}
+	if confirmations <= p.confirmations {
+		return nil
+	}
+	p.confirmations = confirmations
+	p.updatedAt = now.UTC()
+	return nil
+}
+
 // StartConfirming transitions detected → confirming.
 func (p *Payment) StartConfirming(now time.Time) error {
 	if p.status != StatusDetected {

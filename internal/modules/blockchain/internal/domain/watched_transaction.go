@@ -99,6 +99,19 @@ func (t *WatchedTransaction) Status() TxStatus     { return t.status }
 func (t *WatchedTransaction) CreatedAt() time.Time { return t.createdAt }
 func (t *WatchedTransaction) UpdatedAt() time.Time { return t.updatedAt }
 
+// UpdateConfirmations raises the confirmation count (never decreases).
+func (t *WatchedTransaction) UpdateConfirmations(confirmations int, now time.Time) error {
+	if confirmations < 0 {
+		return fmt.Errorf("%w: confirmations must be >= 0", ErrInvalidBlockchain)
+	}
+	if confirmations <= t.confirmations {
+		return nil
+	}
+	t.confirmations = confirmations
+	t.updatedAt = now.UTC()
+	return nil
+}
+
 // Confirm transitions observed → confirmed (idempotent if already confirmed).
 func (t *WatchedTransaction) Confirm(now time.Time) error {
 	switch t.status {

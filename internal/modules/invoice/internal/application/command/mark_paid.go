@@ -10,6 +10,8 @@ type MarkPaid struct {
 type MarkPaidResult struct {
 	InvoiceID  string
 	MerchantID string
+	Amount     string
+	Currency   string
 	TxHash     string
 	OccurredAt time.Time
 }

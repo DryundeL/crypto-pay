@@ -48,6 +48,8 @@ func (h *MarkPaidHandler) Handle(ctx context.Context, cmd MarkPaid) (MarkPaidRes
 		if err := h.pub.Publish(ctx, "invoice", inv.ID().String(), invoicePaidEvent{
 			InvoiceID:  inv.ID().String(),
 			MerchantID: inv.MerchantID(),
+			Amount:     inv.Amount().Amount(),
+			Currency:   inv.Amount().Currency(),
 			TxHash:     inv.TxHash(),
 			OccurredAt: now,
 		}); err != nil {
@@ -57,6 +59,8 @@ func (h *MarkPaidHandler) Handle(ctx context.Context, cmd MarkPaid) (MarkPaidRes
 		result = MarkPaidResult{
 			InvoiceID:  inv.ID().String(),
 			MerchantID: inv.MerchantID(),
+			Amount:     inv.Amount().Amount(),
+			Currency:   inv.Amount().Currency(),
 			TxHash:     inv.TxHash(),
 			OccurredAt: now,
 		}

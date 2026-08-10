@@ -64,7 +64,7 @@ func (h *RecordObservedHandler) Handle(ctx context.Context, cmd RecordObserved) 
 		if existing.MerchantID() != cmd.MerchantID {
 			return RecordObservedResult{}, domain.ErrPaymentNotFound
 		}
-		return toObservedResult(existing), nil
+		return h.refreshConfirmations(ctx, existing, cmd.Confirmations)
 	}
 	if !errors.Is(err, domain.ErrPaymentNotFound) {
 		return RecordObservedResult{}, err
@@ -128,6 +128,31 @@ func (h *RecordObservedHandler) Handle(ctx context.Context, cmd RecordObserved) 
 		return RecordObservedResult{}, fmt.Errorf("mark invoice confirming: %w", err)
 	}
 	return result, nil
+}
+
+func (h *RecordObservedHandler) refreshConfirmations(
+	ctx context.Context,
+	pay *domain.Payment,
+	confirmations int,
+) (RecordObservedResult, error) {
+	if confirmations <= pay.Confirmations() {
+		return toObservedResult(pay), nil
+	}
+
+	err := h.tx.WithinTransaction(ctx, func(ctx context.Context) error {
+		now := h.now().UTC()
+		if err := pay.UpdateConfirmations(confirmations, now); err != nil {
+			return err
+		}
+		if err := h.repo.Save(ctx, pay); err != nil {
+			return fmt.Errorf("save payment confirmations: %w", err)
+		}
+		return nil
+	})
+	if err != nil {
+		return RecordObservedResult{}, err
+	}
+	return toObservedResult(pay), nil
 }
 
 func toObservedResult(p *domain.Payment) RecordObservedResult {

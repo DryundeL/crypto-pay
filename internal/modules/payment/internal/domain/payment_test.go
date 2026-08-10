@@ -78,6 +78,22 @@ func TestPaymentLifecycle(t *testing.T) {
 			t.Fatalf("status = %s, want confirmed", p.Status())
 		}
 	})
+
+	t.Run("update confirmations only increases", func(t *testing.T) {
+		p := mustClone(t, pay)
+		if err := p.UpdateConfirmations(0, now); err != nil {
+			t.Fatal(err)
+		}
+		if p.Confirmations() != 1 {
+			t.Fatalf("confirmations = %d, want 1 (no decrease)", p.Confirmations())
+		}
+		if err := p.UpdateConfirmations(3, now); err != nil {
+			t.Fatal(err)
+		}
+		if p.Confirmations() != 3 {
+			t.Fatalf("confirmations = %d, want 3", p.Confirmations())
+		}
+	})
 }
 
 func mustClone(t *testing.T, p *domain.Payment) *domain.Payment {

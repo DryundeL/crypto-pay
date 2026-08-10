@@ -23,10 +23,15 @@ type Module struct {
 }
 
 type Dependencies struct {
-	DB *gorm.DB
+	DB            *gorm.DB
+	Confirmations ports.ConfirmationPolicy
 }
 
 func NewModule(deps Dependencies) *Module {
+	if deps.Confirmations == nil {
+		panic("blockchain: Confirmations policy is required")
+	}
+
 	tx := transaction.NewGormManager(deps.DB)
 	outboxStore := outbox.NewStore(deps.DB)
 	publisher := write.NewOutboxPublisher(outboxStore)
@@ -35,7 +40,7 @@ func NewModule(deps Dependencies) *Module {
 
 	allocate := command.NewAllocateAddressHandler(addrRepo, tx)
 	observe := command.NewRecordObservationHandler(txRepo, tx, publisher)
-	confirm := command.NewConfirmTransactionHandler(txRepo, tx, publisher)
+	confirm := command.NewConfirmTransactionHandler(txRepo, tx, publisher, deps.Confirmations)
 
 	return &Module{
 		allocate: allocate,

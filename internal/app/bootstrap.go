@@ -59,11 +59,16 @@ func Bootstrap() (*App, error) {
 	e := httpserver.New()
 	httpserver.RegisterHealthRoutes(e, httpserver.NewHealthHandler(db, serviceName, cfg.App.Version))
 
+	confirmations := payment.NewConfirmationPolicy(cfg.Confirmations)
+
 	merchantModule := merchant.NewModule(merchant.Dependencies{
 		DB:           db,
 		APIKeyPepper: cfg.App.JWTSecret,
 	})
-	blockchainModule := blockchain.NewModule(blockchain.Dependencies{DB: db})
+	blockchainModule := blockchain.NewModule(blockchain.Dependencies{
+		DB:            db,
+		Confirmations: confirmations,
+	})
 	invoiceModule := invoice.NewModule(invoice.Dependencies{
 		DB:              db,
 		AddressProvider: blockchainModule.AddressProvider(),
@@ -72,6 +77,7 @@ func Bootstrap() (*App, error) {
 		DB:               db,
 		InvoiceLookup:    invoiceModule,
 		InvoiceLifecycle: invoiceModule,
+		Confirmations:    confirmations,
 	})
 	blockchainModule.SetPaymentNotifier(paymentModule)
 	ledgerModule := ledger.NewModule(ledger.Dependencies{DB: db})
@@ -84,7 +90,7 @@ func Bootstrap() (*App, error) {
 		Merchant:      merchantModule,
 		SigningSecret: cfg.App.JWTSecret,
 	})
-	notifier := webhookNotifier{webhooks: webhookModule}
+	notifier := sideEffectNotifier{ledger: ledgerModule, webhooks: webhookModule}
 	invoiceModule.SetPaidNotifier(notifier)
 	withdrawalModule.SetCompletedNotifier(notifier)
 

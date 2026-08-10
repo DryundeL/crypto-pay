@@ -14,6 +14,7 @@ type ConfirmPaymentHandler struct {
 	tx      ports.TransactionManager
 	pub     ports.EventPublisher
 	invoice ports.InvoiceLifecycle
+	policy  ports.ConfirmationPolicy
 	now     func() time.Time
 }
 
@@ -22,12 +23,14 @@ func NewConfirmPaymentHandler(
 	tx ports.TransactionManager,
 	pub ports.EventPublisher,
 	invoice ports.InvoiceLifecycle,
+	policy ports.ConfirmationPolicy,
 ) *ConfirmPaymentHandler {
 	return &ConfirmPaymentHandler{
 		repo:    repo,
 		tx:      tx,
 		pub:     pub,
 		invoice: invoice,
+		policy:  policy,
 		now:     time.Now,
 	}
 }
@@ -62,6 +65,20 @@ func (h *ConfirmPaymentHandler) Handle(ctx context.Context, cmd ConfirmPayment) 
 
 	if pay.Status() == domain.StatusConfirmed {
 		return toConfirmResult(pay), nil
+	}
+
+	required, err := h.policy.Required(pay.Network())
+	if err != nil {
+		return ConfirmPaymentResult{}, err
+	}
+	if pay.Confirmations() < required {
+		return ConfirmPaymentResult{}, fmt.Errorf(
+			"%w: have %d, need %d for %s",
+			domain.ErrInsufficientConfirmations,
+			pay.Confirmations(),
+			required,
+			pay.Network(),
+		)
 	}
 
 	var result ConfirmPaymentResult

@@ -10,8 +10,9 @@ import (
 )
 
 type Config struct {
-	Database DatabaseConfig
-	App      AppConfig
+	Database      DatabaseConfig
+	App           AppConfig
+	Confirmations map[string]int
 }
 
 type DatabaseConfig struct {
@@ -43,6 +44,25 @@ func LoadConfig() (*Config, error) {
 		_ = godotenv.Load()
 	}
 
+	appCfg := AppConfig{
+		Env:          getEnv("APP_ENV", "development"),
+		Port:         getEnv("APP_PORT", "8080"),
+		URL:          getEnv("APP_URL", "http://localhost:8080"),
+		Version:      getEnv("APP_VERSION", getBuildVersion()),
+		JWTSecret:    getEnv("JWT_SECRET", ""),
+		SMTPHost:     getEnv("SMTP_HOST", ""),
+		SMTPPort:     getEnv("SMTP_PORT", "587"),
+		SMTPUser:     getEnv("SMTP_USER", ""),
+		SMTPPassword: getEnv("SMTP_PASSWORD", ""),
+		SMTPFrom:     getEnv("SMTP_FROM", ""),
+		HelpMail:     getEnv("HELP_MAIL", ""),
+	}
+
+	overrides, err := ParseConfirmationThresholds(getEnv("CONFIRMATION_THRESHOLDS", ""))
+	if err != nil {
+		return nil, fmt.Errorf("CONFIRMATION_THRESHOLDS: %w", err)
+	}
+
 	cfg := &Config{
 		Database: DatabaseConfig{
 			Host:     getEnv("DB_HOST", "localhost"),
@@ -52,19 +72,8 @@ func LoadConfig() (*Config, error) {
 			DBName:   getEnv("DB_NAME", "crypto_pay"),
 			SSLMode:  getEnv("DB_SSLMODE", "disable"),
 		},
-		App: AppConfig{
-			Env:          getEnv("APP_ENV", "development"),
-			Port:         getEnv("APP_PORT", "8080"),
-			URL:          getEnv("APP_URL", "http://localhost:8080"),
-			Version:      getEnv("APP_VERSION", getBuildVersion()),
-			JWTSecret:    getEnv("JWT_SECRET", ""),
-			SMTPHost:     getEnv("SMTP_HOST", ""),
-			SMTPPort:     getEnv("SMTP_PORT", "587"),
-			SMTPUser:     getEnv("SMTP_USER", ""),
-			SMTPPassword: getEnv("SMTP_PASSWORD", ""),
-			SMTPFrom:     getEnv("SMTP_FROM", ""),
-			HelpMail:     getEnv("HELP_MAIL", ""),
-		},
+		App:           appCfg,
+		Confirmations: mergeConfirmationThresholds(DefaultConfirmationThresholds(appCfg.Env), overrides),
 	}
 
 	if err := cfg.Validate(); err != nil {

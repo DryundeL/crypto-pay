@@ -21,6 +21,9 @@ var ErrNotFound = errors.New("payment not found")
 // ErrInvalid is returned for validation / business-rule failures on public facades.
 var ErrInvalid = errors.New("invalid payment")
 
+// ErrInsufficientConfirmations is returned when Confirm is called before the network threshold.
+var ErrInsufficientConfirmations = errors.New("insufficient confirmations")
+
 // RecordObservedInput is the public input for recording a chain observation.
 type RecordObservedInput struct {
 	MerchantID    string

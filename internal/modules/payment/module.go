@@ -29,9 +29,20 @@ type Dependencies struct {
 	DB               *gorm.DB
 	InvoiceLookup    ports.InvoiceLookup
 	InvoiceLifecycle ports.InvoiceLifecycle
+	Confirmations    ConfirmationPolicy
 }
 
 func NewModule(deps Dependencies) *Module {
+	if deps.DB == nil {
+		panic("payment: DB is required")
+	}
+	if deps.InvoiceLookup == nil || deps.InvoiceLifecycle == nil {
+		panic("payment: invoice ports are required")
+	}
+	if !deps.Confirmations.Configured() {
+		panic("payment: Confirmations policy is required")
+	}
+
 	tx := transaction.NewGormManager(deps.DB)
 	outboxStore := outbox.NewStore(deps.DB)
 	publisher := write.NewOutboxPublisher(outboxStore)
@@ -41,7 +52,9 @@ func NewModule(deps Dependencies) *Module {
 	recordObserved := command.NewRecordObservedHandler(
 		repo, tx, publisher, deps.InvoiceLookup, deps.InvoiceLifecycle,
 	)
-	confirm := command.NewConfirmPaymentHandler(repo, tx, publisher, deps.InvoiceLifecycle)
+	confirm := command.NewConfirmPaymentHandler(
+		repo, tx, publisher, deps.InvoiceLifecycle, deps.Confirmations,
+	)
 	getPayment := query.NewGetPaymentHandler(queries)
 
 	return &Module{
@@ -120,7 +133,11 @@ func mapFacadeError(err error) error {
 	switch {
 	case errors.Is(err, domain.ErrPaymentNotFound):
 		return ErrNotFound
-	case errors.Is(err, domain.ErrInvalidPayment), errors.Is(err, domain.ErrInvalidTransition):
+	case errors.Is(err, domain.ErrInsufficientConfirmations):
+		return ErrInsufficientConfirmations
+	case errors.Is(err, ErrInvalid),
+		errors.Is(err, domain.ErrInvalidPayment),
+		errors.Is(err, domain.ErrInvalidTransition):
 		return ErrInvalid
 	default:
 		return err

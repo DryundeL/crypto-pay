@@ -15,6 +15,7 @@ type ConfirmTransactionHandler struct {
 	repo      domain.TransactionRepository
 	tx        ports.TransactionManager
 	pub       ports.EventPublisher
+	policy    ports.ConfirmationPolicy
 	payment   ports.PaymentNotifier
 	paymentMu sync.RWMutex
 	now       func() time.Time
@@ -24,12 +25,14 @@ func NewConfirmTransactionHandler(
 	repo domain.TransactionRepository,
 	tx ports.TransactionManager,
 	pub ports.EventPublisher,
+	policy ports.ConfirmationPolicy,
 ) *ConfirmTransactionHandler {
 	return &ConfirmTransactionHandler{
-		repo: repo,
-		tx:   tx,
-		pub:  pub,
-		now:  time.Now,
+		repo:   repo,
+		tx:     tx,
+		pub:    pub,
+		policy: policy,
+		now:    time.Now,
 	}
 }
 
@@ -66,6 +69,20 @@ func (h *ConfirmTransactionHandler) Handle(ctx context.Context, cmd ConfirmTrans
 	if watched.Status() == domain.TxStatusConfirmed {
 		result = toConfirmResult(watched)
 	} else {
+		required, err := h.policy.Required(watched.Network())
+		if err != nil {
+			return ConfirmTransactionResult{}, err
+		}
+		if watched.Confirmations() < required {
+			return ConfirmTransactionResult{}, fmt.Errorf(
+				"%w: have %d, need %d for %s",
+				domain.ErrInsufficientConfirmations,
+				watched.Confirmations(),
+				required,
+				watched.Network(),
+			)
+		}
+
 		err = h.tx.WithinTransaction(ctx, func(ctx context.Context) error {
 			now := h.now().UTC()
 			if err := watched.Confirm(now); err != nil {

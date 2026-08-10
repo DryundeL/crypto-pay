@@ -19,6 +19,8 @@ func (invoiceCreatedEvent) EventName() string { return "invoice.created" }
 type invoicePaidEvent struct {
 	InvoiceID  string    `json:"invoice_id"`
 	MerchantID string    `json:"merchant_id"`
+	Amount     string    `json:"amount"`
+	Currency   string    `json:"currency"`
 	TxHash     string    `json:"tx_hash"`
 	OccurredAt time.Time `json:"occurred_at"`
 }

@@ -123,6 +123,8 @@ func (m *Module) MarkPaid(ctx context.Context, invoiceID, txHash string) error {
 		if err := m.paidNotifier.NotifyInvoicePaid(ctx, InvoicePaidNotification{
 			InvoiceID:  result.InvoiceID,
 			MerchantID: result.MerchantID,
+			Amount:     result.Amount,
+			Currency:   result.Currency,
 			TxHash:     result.TxHash,
 			OccurredAt: result.OccurredAt,
 		}); err != nil {

@@ -68,7 +68,11 @@ func (h *RecordObservationHandler) Handle(ctx context.Context, cmd RecordObserva
 
 	var result RecordObservationResult
 	if alreadyPersisted {
-		result = toObservationResult(existing)
+		updated, err := h.refreshConfirmations(ctx, existing, cmd.Confirmations)
+		if err != nil {
+			return RecordObservationResult{}, err
+		}
+		result = toObservationResult(updated)
 	} else {
 		err = h.tx.WithinTransaction(ctx, func(ctx context.Context) error {
 			existing, err := h.repo.FindByNetworkTxHash(ctx, cmd.Network, cmd.TxHash)
@@ -132,6 +136,30 @@ func (h *RecordObservationHandler) Handle(ctx context.Context, cmd RecordObserva
 		return RecordObservationResult{}, fmt.Errorf("notify payment observed: %w", err)
 	}
 	return result, nil
+}
+
+func (h *RecordObservationHandler) refreshConfirmations(
+	ctx context.Context,
+	watched *domain.WatchedTransaction,
+	confirmations int,
+) (*domain.WatchedTransaction, error) {
+	if confirmations <= watched.Confirmations() {
+		return watched, nil
+	}
+	err := h.tx.WithinTransaction(ctx, func(ctx context.Context) error {
+		now := h.now().UTC()
+		if err := watched.UpdateConfirmations(confirmations, now); err != nil {
+			return err
+		}
+		if err := h.repo.Save(ctx, watched); err != nil {
+			return fmt.Errorf("save observation confirmations: %w", err)
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return watched, nil
 }
 
 func (h *RecordObservationHandler) paymentNotifier() ports.PaymentNotifier {
