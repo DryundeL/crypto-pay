@@ -26,9 +26,8 @@ type Module struct {
 }
 
 type Dependencies struct {
-	DB            *gorm.DB
-	Merchant      ports.MerchantEndpoint
-	SigningSecret string
+	DB       *gorm.DB
+	Merchant ports.MerchantEndpoint
 }
 
 func NewModule(deps Dependencies) *Module {
@@ -38,19 +37,16 @@ func NewModule(deps Dependencies) *Module {
 	if deps.Merchant == nil {
 		panic("webhook: Merchant is required")
 	}
-	if deps.SigningSecret == "" {
-		panic("webhook: SigningSecret is required")
-	}
 
 	tx := transaction.NewGormManager(deps.DB)
 	outboxStore := outbox.NewStore(deps.DB)
 	publisher := write.NewOutboxPublisher(outboxStore)
 	repo := write.NewDeliveryRepository(deps.DB)
 	queries := read.NewDeliveryQueries(deps.DB)
-	deliverer := write.NewHTTPDeliverer(deps.SigningSecret)
+	deliverer := write.NewHTTPDeliverer()
 
 	enqueue := command.NewEnqueueDeliveryHandler(repo, tx, deps.Merchant)
-	process := command.NewProcessDueHandler(repo, tx, publisher, deliverer)
+	process := command.NewProcessDueHandler(repo, tx, publisher, deliverer, deps.Merchant)
 	get := query.NewGetDeliveryHandler(queries)
 	list := query.NewListDeliveriesHandler(queries)
 

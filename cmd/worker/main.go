@@ -13,7 +13,9 @@ import (
 	"github.com/DryundeL/crypto-pay/internal/modules/merchant"
 	"github.com/DryundeL/crypto-pay/internal/modules/webhook"
 	"github.com/DryundeL/crypto-pay/internal/platform/database"
+	"github.com/DryundeL/crypto-pay/internal/platform/eventbus"
 	"github.com/DryundeL/crypto-pay/internal/platform/observability"
+	"github.com/DryundeL/crypto-pay/internal/platform/outbox"
 )
 
 // workerAddressProvider satisfies invoice.Dependencies; create is unused in worker.
@@ -47,10 +49,12 @@ func main() {
 		APIKeyPepper: cfg.App.JWTSecret,
 	})
 	webhookModule := webhook.NewModule(webhook.Dependencies{
-		DB:            db,
-		Merchant:      merchantModule,
-		SigningSecret: cfg.App.JWTSecret,
+		DB:       db,
+		Merchant: merchantModule,
 	})
+	bus := eventbus.NewInProcess()
+	app.RegisterWebhookConsumers(bus, webhookModule)
+	relayer := outbox.NewRelayer(db, bus)
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
@@ -69,15 +73,23 @@ func main() {
 			}
 			return
 		case <-ticker.C:
-			if err := runOnce(ctx, invoiceModule, webhookModule); err != nil {
+			if err := runOnce(ctx, relayer, invoiceModule, webhookModule); err != nil {
 				log.Error("worker tick failed", "error", err)
 			}
 		}
 	}
 }
 
-func runOnce(ctx context.Context, invoices *invoice.Module, webhooks *webhook.Module) error {
+func runOnce(ctx context.Context, relayer outbox.Relayer, invoices *invoice.Module, webhooks *webhook.Module) error {
 	log := observability.Logger()
+
+	published, err := relayer.RelayPending(ctx, 100)
+	if err != nil {
+		return fmt.Errorf("relay outbox: %w", err)
+	}
+	if published > 0 {
+		log.Info("relayed outbox messages", "published", published)
+	}
 
 	expired, err := invoices.ExpireDue(ctx, 100)
 	if err != nil {

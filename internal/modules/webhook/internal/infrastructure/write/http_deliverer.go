@@ -24,16 +24,14 @@ const (
 )
 
 type HTTPDeliverer struct {
-	client        *http.Client
-	signingSecret []byte
-	now           func() time.Time
-	lookupIP      func(ctx context.Context, host string) ([]net.IP, error)
+	client   *http.Client
+	now      func() time.Time
+	lookupIP func(ctx context.Context, host string) ([]net.IP, error)
 }
 
-func NewHTTPDeliverer(signingSecret string) *HTTPDeliverer {
+func NewHTTPDeliverer() *HTTPDeliverer {
 	d := &HTTPDeliverer{
-		signingSecret: []byte(signingSecret),
-		now:           time.Now,
+		now: time.Now,
 		lookupIP: func(ctx context.Context, host string) ([]net.IP, error) {
 			return net.DefaultResolver.LookupIP(ctx, "ip", host)
 		},
@@ -60,7 +58,14 @@ func (d *HTTPDeliverer) Deliver(
 	ctx context.Context,
 	deliveryID, eventName, targetURL string,
 	payload []byte,
+	signingSecret string,
 ) (ports.DeliverResult, error) {
+	if signingSecret == "" {
+		return ports.DeliverResult{
+			Retryable: false,
+			Error:     "signing secret is required",
+		}, nil
+	}
 	if err := d.validateURL(ctx, targetURL); err != nil {
 		return ports.DeliverResult{
 			Retryable: false,
@@ -69,7 +74,7 @@ func (d *HTTPDeliverer) Deliver(
 	}
 
 	ts := strconv.FormatInt(d.now().UTC().Unix(), 10)
-	sig := signPayload(d.signingSecret, ts, payload)
+	sig := signPayload([]byte(signingSecret), ts, payload)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, targetURL, bytes.NewReader(payload))
 	if err != nil {

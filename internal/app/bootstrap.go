@@ -87,13 +87,10 @@ func Bootstrap() (*App, error) {
 		Ledger: ledgerModule,
 	})
 	webhookModule := webhook.NewModule(webhook.Dependencies{
-		DB:            db,
-		Merchant:      merchantModule,
-		SigningSecret: cfg.App.JWTSecret,
+		DB:       db,
+		Merchant: merchantModule,
 	})
-	notifier := NewSideEffectNotifier(ledgerModule, webhookModule)
-	invoiceModule.SetPaidNotifier(notifier)
-	withdrawalModule.SetCompletedNotifier(notifier)
+	invoiceModule.SetPaidNotifier(NewLedgerPaidNotifier(ledgerModule))
 
 	api := e.Group("/api")
 	merchantModule.RegisterHTTP(api)

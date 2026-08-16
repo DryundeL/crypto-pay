@@ -3,9 +3,10 @@ package merchant
 import "time"
 
 const (
-	EventMerchantCreated       = "merchant.created"
-	EventMerchantAPIKeyCreated = "merchant.api_key_created"
-	EventMerchantAPIKeyRevoked = "merchant.api_key_revoked"
+	EventMerchantCreated              = "merchant.created"
+	EventMerchantAPIKeyCreated        = "merchant.api_key_created"
+	EventMerchantAPIKeyRevoked        = "merchant.api_key_revoked"
+	EventMerchantWebhookSecretRotated = "merchant.webhook_secret_rotated"
 )
 
 type MerchantCreated struct {
@@ -32,3 +33,10 @@ type MerchantAPIKeyRevoked struct {
 }
 
 func (MerchantAPIKeyRevoked) EventName() string { return EventMerchantAPIKeyRevoked }
+
+type MerchantWebhookSecretRotated struct {
+	MerchantID string    `json:"merchant_id"`
+	OccurredAt time.Time `json:"occurred_at"`
+}
+
+func (MerchantWebhookSecretRotated) EventName() string { return EventMerchantWebhookSecretRotated }

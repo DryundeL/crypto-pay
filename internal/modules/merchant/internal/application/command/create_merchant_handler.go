@@ -17,6 +17,7 @@ type CreateMerchantHandler struct {
 	publisher ports.EventPublisher
 	keys      ports.APIKeyGenerator
 	now       func() time.Time
+	newSecret func() (string, error)
 }
 
 func NewCreateMerchantHandler(
@@ -31,18 +32,20 @@ func NewCreateMerchantHandler(
 		publisher: publisher,
 		keys:      keys,
 		now:       time.Now,
+		newSecret: domain.GenerateWebhookSecret,
 	}
 }
 
 type CreateMerchantResult struct {
-	MerchantID string
-	Name       string
-	Status     string
-	WebhookURL string
-	CreatedAt  time.Time
-	APIKeyID   string
-	KeyPrefix  string
-	APIKey     string // plaintext — returned once (bootstrap key)
+	MerchantID    string
+	Name          string
+	Status        string
+	WebhookURL    string
+	CreatedAt     time.Time
+	APIKeyID      string
+	KeyPrefix     string
+	APIKey        string // plaintext — returned once (bootstrap key)
+	WebhookSecret string // plaintext — returned once
 }
 
 func (h *CreateMerchantHandler) Handle(ctx context.Context, cmd CreateMerchant) (CreateMerchantResult, error) {
@@ -50,11 +53,16 @@ func (h *CreateMerchantHandler) Handle(ctx context.Context, cmd CreateMerchant) 
 
 	err := h.tx.WithinTransaction(ctx, func(ctx context.Context) error {
 		now := h.now().UTC()
+		secret, err := h.newSecret()
+		if err != nil {
+			return err
+		}
 		m, err := domain.NewMerchant(domain.NewMerchantParams{
-			ID:         domain.MerchantID(uuid.NewString()),
-			Name:       cmd.Name,
-			WebhookURL: cmd.WebhookURL,
-			Now:        now,
+			ID:            domain.MerchantID(uuid.NewString()),
+			Name:          cmd.Name,
+			WebhookURL:    cmd.WebhookURL,
+			WebhookSecret: secret,
+			Now:           now,
 		})
 		if err != nil {
 			return err
@@ -98,14 +106,15 @@ func (h *CreateMerchantHandler) Handle(ctx context.Context, cmd CreateMerchant) 
 		}
 
 		result = CreateMerchantResult{
-			MerchantID: m.ID().String(),
-			Name:       m.Name(),
-			Status:     m.Status().String(),
-			WebhookURL: m.WebhookURL(),
-			CreatedAt:  m.CreatedAt(),
-			APIKeyID:   key.ID().String(),
-			KeyPrefix:  key.KeyPrefix(),
-			APIKey:     material.Plaintext,
+			MerchantID:    m.ID().String(),
+			Name:          m.Name(),
+			Status:        m.Status().String(),
+			WebhookURL:    m.WebhookURL(),
+			CreatedAt:     m.CreatedAt(),
+			APIKeyID:      key.ID().String(),
+			KeyPrefix:     key.KeyPrefix(),
+			APIKey:        material.Plaintext,
+			WebhookSecret: m.WebhookSecret(),
 		}
 		return nil
 	})

@@ -56,7 +56,7 @@ Invoice становится paid
 | `blockchain` | HD-адреса (EVM xpub) + Sepolia scanner | реализован |
 | `ledger` | Учёт балансов (credit + balances) | реализован |
 | `withdrawal` | Выводы (request + debit + complete facade) | частично |
-| `webhook` | Исходящие уведомления мерчанту (enqueue + retry delivery) | частично |
+| `webhook` | Исходящие уведомления мерчанту (enqueue + retry + per-merchant secret) | реализован |
 
 ### Структура репозитория
 
@@ -65,7 +65,7 @@ cmd/
   crypto-pay/     # HTTP API
   migrator/       # миграции БД
   scanner/        # EVM Sepolia observation
-  worker/         # expire invoices + webhook delivery
+  worker/         # outbox relay → webhook enqueue + expire invoices + delivery
 
 internal/
   app/            # bootstrap, config
@@ -174,11 +174,12 @@ go run ./cmd/migrator -command=up
 
 | Method | Path | Auth | Описание |
 |--------|------|------|----------|
-| `POST` | `/api/v1/merchants` | нет | создать мерчанта + первый API key |
-| `GET` | `/api/v1/merchants/:id` | API key | получить мерчанта |
+| `POST` | `/api/v1/merchants` | нет | создать мерчанта + первый API key + webhook_secret |
+| `GET` | `/api/v1/merchants/:id` | API key | получить мерчанта (без секретов) |
 | `POST` | `/api/v1/merchants/:id/api-keys` | API key | выпустить ключ |
 | `GET` | `/api/v1/merchants/:id/api-keys` | API key | список ключей (без секрета) |
 | `DELETE` | `/api/v1/merchants/:id/api-keys/:keyId` | API key | revoke ключа |
+| `POST` | `/api/v1/merchants/:id/webhook-secret/rotate` | API key | новый webhook_secret (plaintext один раз) |
 
 Авторизация защищённых роутов:
 
@@ -186,6 +187,8 @@ go run ./cmd/migrator -command=up
 - `Authorization: Bearer <key>` / `Authorization: ApiKey <key>`
 
 Ключ хранится только как `SHA-256(pepper:plaintext)`; plaintext возвращается **один раз** при создании.
+
+`webhook_secret` тоже возвращается **один раз** (create / rotate). GET мерчанта его не отдаёт. После деплоя с миграцией `000012` существующие мерчанты должны вызвать rotate.
 
 ### Webhook deliveries
 
@@ -196,12 +199,23 @@ go run ./cmd/migrator -command=up
 
 События v1: `invoice.paid`, `withdrawal.completed` (если у мерчанта задан `webhook_url`).
 
+Enqueue: worker, из outbox (`invoice.paid` / `withdrawal.completed`), не sync после MarkPaid. Idempotency: `event:source_id`.
+
 Доставка (worker):
 
 - `POST` на snapshot URL
 - headers: `X-Webhook-Event`, `X-Webhook-Delivery-Id`, `X-Webhook-Timestamp`, `X-Webhook-Signature: sha256=<hex>`
-- подпись: `HMAC-SHA256(JWT_SECRET, "{timestamp}.{body}")`
+- подпись: `HMAC-SHA256(webhook_secret, "{timestamp}.{body}")` — секрет мерчанта, не `JWT_SECRET`
 - retry: 408/429/5xx + network, backoff; non-retryable 4xx / max attempts → `failed`
+
+Проверка на стороне мерчанта:
+
+```text
+signed = HMAC-SHA256(webhook_secret, timestamp + "." + raw_body)
+expected header: sha256=<hex(signed)>
+```
+
+Сравнивайте через constant-time compare. Секрет из create/rotate, не из JWT.
 
 Пример:
 
@@ -223,7 +237,7 @@ curl -s http://localhost:8080/api/v1/merchants/<merchant_id> \
 | `crypto-pay` | HTTP API |
 | `migrator` | применение / откат миграций |
 | `scanner` | EVM Sepolia poll → observe/confirm |
-| `worker` | expire due invoices + webhook delivery (`ProcessDue`); outbox relay (пока stub) |
+| `worker` | outbox relay → webhook enqueue + expire due invoices + webhook delivery (`ProcessDue`) |
 
 ## Разработка
 
@@ -240,4 +254,4 @@ go test ./...
 
 Фаза 1 (money-in) закрыта: ledger credit, confirmation policy, expire job, Sepolia scanner + HD xpub.
 
-Дальше: outbox relay / async webhooks, per-merchant secrets, withdrawal pipeline.
+Дальше: withdrawal pipeline (TX consistency + worker).

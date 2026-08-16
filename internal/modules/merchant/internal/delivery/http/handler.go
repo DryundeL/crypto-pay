@@ -12,26 +12,29 @@ import (
 )
 
 type Handler struct {
-	createMerchant *command.CreateMerchantHandler
-	createAPIKey   *command.CreateAPIKeyHandler
-	revokeAPIKey   *command.RevokeAPIKeyHandler
-	getMerchant    *query.GetMerchantHandler
-	listAPIKeys    *query.ListAPIKeysHandler
+	createMerchant      *command.CreateMerchantHandler
+	createAPIKey        *command.CreateAPIKeyHandler
+	revokeAPIKey        *command.RevokeAPIKeyHandler
+	rotateWebhookSecret *command.RotateWebhookSecretHandler
+	getMerchant         *query.GetMerchantHandler
+	listAPIKeys         *query.ListAPIKeysHandler
 }
 
 func NewHandler(
 	createMerchant *command.CreateMerchantHandler,
 	createAPIKey *command.CreateAPIKeyHandler,
 	revokeAPIKey *command.RevokeAPIKeyHandler,
+	rotateWebhookSecret *command.RotateWebhookSecretHandler,
 	getMerchant *query.GetMerchantHandler,
 	listAPIKeys *query.ListAPIKeysHandler,
 ) *Handler {
 	return &Handler{
-		createMerchant: createMerchant,
-		createAPIKey:   createAPIKey,
-		revokeAPIKey:   revokeAPIKey,
-		getMerchant:    getMerchant,
-		listAPIKeys:    listAPIKeys,
+		createMerchant:      createMerchant,
+		createAPIKey:        createAPIKey,
+		revokeAPIKey:        revokeAPIKey,
+		rotateWebhookSecret: rotateWebhookSecret,
+		getMerchant:         getMerchant,
+		listAPIKeys:         listAPIKeys,
 	}
 }
 
@@ -50,14 +53,15 @@ func (h *Handler) CreateMerchant(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusCreated, merchantResponse{
-		ID:         result.MerchantID,
-		Name:       result.Name,
-		Status:     result.Status,
-		WebhookURL: result.WebhookURL,
-		CreatedAt:  result.CreatedAt,
-		APIKeyID:   result.APIKeyID,
-		KeyPrefix:  result.KeyPrefix,
-		APIKey:     result.APIKey,
+		ID:            result.MerchantID,
+		Name:          result.Name,
+		Status:        result.Status,
+		WebhookURL:    result.WebhookURL,
+		CreatedAt:     result.CreatedAt,
+		APIKeyID:      result.APIKeyID,
+		KeyPrefix:     result.KeyPrefix,
+		APIKey:        result.APIKey,
+		WebhookSecret: result.WebhookSecret,
 	})
 }
 
@@ -133,6 +137,18 @@ func (h *Handler) RevokeAPIKey(c echo.Context) error {
 		return mapError(c, err)
 	}
 	return c.NoContent(http.StatusNoContent)
+}
+
+func (h *Handler) RotateWebhookSecret(c echo.Context) error {
+	result, err := h.rotateWebhookSecret.Handle(c.Request().Context(), command.RotateWebhookSecret{
+		MerchantID: c.Param("id"),
+	})
+	if err != nil {
+		return mapError(c, err)
+	}
+	return c.JSON(http.StatusOK, rotateWebhookSecretResponse{
+		WebhookSecret: result.WebhookSecret,
+	})
 }
 
 func mapError(c echo.Context, err error) error {

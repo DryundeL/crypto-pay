@@ -8,7 +8,7 @@ type Publisher interface {
 	Publish(ctx context.Context, topic string, payload []byte) error
 }
 
-// Noop is a placeholder until Watermill (or another bus) is wired in the worker.
+// Noop drops messages. Production worker uses InProcess (Watermill optional later).
 type Noop struct{}
 
 func (Noop) Publish(context.Context, string, []byte) error { return nil }

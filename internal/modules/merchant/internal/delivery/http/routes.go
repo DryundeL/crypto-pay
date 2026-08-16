@@ -23,4 +23,5 @@ func RegisterRoutes(g *echo.Group, deps RouteDeps) {
 	secured.POST("/:id/api-keys", deps.Handler.CreateAPIKey)
 	secured.GET("/:id/api-keys", deps.Handler.ListAPIKeys)
 	secured.DELETE("/:id/api-keys/:keyId", deps.Handler.RevokeAPIKey)
+	secured.POST("/:id/webhook-secret/rotate", deps.Handler.RotateWebhookSecret)
 }

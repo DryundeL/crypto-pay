@@ -34,7 +34,7 @@ type InvoiceRef struct {
 	Status     string
 }
 
-// InvoicePaidNotification is a composition-root side-effect payload after MarkPaid.
+// InvoicePaidNotification is a composition-root payload for ledger credit after MarkPaid.
 type InvoicePaidNotification struct {
 	InvoiceID  string
 	MerchantID string

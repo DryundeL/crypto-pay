@@ -107,12 +107,13 @@ func (m *Module) MarkConfirming(ctx context.Context, invoiceID string) error {
 	return err
 }
 
-// SetPaidNotifier wires a post-paid side effect (e.g. webhook enqueue) at composition root.
+// SetPaidNotifier wires a post-paid side effect (ledger credit) at composition root.
+// Webhooks are enqueued by the worker from the outbox event, not here.
 func (m *Module) SetPaidNotifier(n PaidNotifier) {
 	m.paidNotifier = n
 }
 
-// MarkPaid transitions invoice to paid and emits invoice.paid via outbox.
+// MarkPaid transitions invoice to paid and emits invoice.paid via outbox (same TX).
 func (m *Module) MarkPaid(ctx context.Context, invoiceID, txHash string) error {
 	result, err := m.markPaid.Handle(ctx, command.MarkPaid{InvoiceID: invoiceID, TxHash: txHash})
 	if errors.Is(err, domain.ErrInvoiceNotFound) {

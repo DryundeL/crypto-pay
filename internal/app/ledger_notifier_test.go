@@ -8,7 +8,6 @@ import (
 
 	"github.com/DryundeL/crypto-pay/internal/modules/invoice"
 	"github.com/DryundeL/crypto-pay/internal/modules/ledger"
-	"github.com/DryundeL/crypto-pay/internal/modules/webhook"
 )
 
 type stubLedger struct {
@@ -24,19 +23,9 @@ func (s *stubLedger) PostJournal(_ context.Context, in ledger.PostJournalInput) 
 	return ledger.PostJournalResult{JournalID: "j-1", Created: len(s.calls) == 1}, nil
 }
 
-type stubWebhook struct {
-	calls int
-}
-
-func (s *stubWebhook) Enqueue(_ context.Context, _ webhook.EnqueueInput) (webhook.EnqueueResult, error) {
-	s.calls++
-	return webhook.EnqueueResult{ID: "d-1", Created: true}, nil
-}
-
 func TestNotifyInvoicePaidCreditsLedger(t *testing.T) {
 	led := &stubLedger{}
-	wh := &stubWebhook{}
-	n := sideEffectNotifier{ledger: led, webhooks: wh}
+	n := ledgerPaidNotifier{ledger: led}
 
 	in := invoice.InvoicePaidNotification{
 		InvoiceID:  "inv-1",
@@ -70,15 +59,11 @@ func TestNotifyInvoicePaidCreditsLedger(t *testing.T) {
 	if led.calls[1].IdempotencyKey != led.calls[0].IdempotencyKey {
 		t.Fatal("retry must reuse the same idempotency key")
 	}
-	if wh.calls != 2 {
-		t.Fatalf("webhook Enqueue calls = %d, want 2", wh.calls)
-	}
 }
 
 func TestNotifyInvoicePaidStopsOnLedgerError(t *testing.T) {
 	led := &stubLedger{err: errors.New("ledger down")}
-	wh := &stubWebhook{}
-	n := sideEffectNotifier{ledger: led, webhooks: wh}
+	n := ledgerPaidNotifier{ledger: led}
 
 	err := n.NotifyInvoicePaid(context.Background(), invoice.InvoicePaidNotification{
 		InvoiceID:  "inv-1",
@@ -88,8 +73,5 @@ func TestNotifyInvoicePaidStopsOnLedgerError(t *testing.T) {
 	})
 	if err == nil {
 		t.Fatal("expected error")
-	}
-	if wh.calls != 0 {
-		t.Fatal("webhook must not run after ledger failure")
 	}
 }

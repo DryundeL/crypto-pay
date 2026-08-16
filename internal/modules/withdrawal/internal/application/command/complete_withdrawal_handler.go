@@ -56,6 +56,9 @@ func (h *CompleteWithdrawalHandler) Handle(ctx context.Context, cmd CompleteWith
 			WithdrawalID: w.ID().String(),
 			MerchantID:   w.MerchantID(),
 			TxHash:       w.TxHash(),
+			Amount:       w.Amount(),
+			Currency:     w.Currency(),
+			Network:      w.Network(),
 			OccurredAt:   now,
 		}); err != nil {
 			return err

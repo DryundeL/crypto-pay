@@ -49,6 +49,10 @@ func (m fakeMerchant) WebhookURL(ctx context.Context, merchantID string) (string
 	return m.url, nil
 }
 
+func (m fakeMerchant) WebhookSecret(context.Context, string) (string, error) {
+	return "whsec_test-secret-at-least-32-chars", nil
+}
+
 func TestEnqueueDeliveryIdempotent(t *testing.T) {
 	repo := &fakeRepo{}
 	h := NewEnqueueDeliveryHandler(repo, fakeTx{}, fakeMerchant{url: "https://example.com/hook"})

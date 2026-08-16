@@ -23,6 +23,7 @@ type Module struct {
 	hasher      *write.APIKeyGenerator
 	auth        *read.APIKeyAuthenticator
 	getMerchant *query.GetMerchantHandler
+	queries     *read.MerchantQueries
 }
 
 type Dependencies struct {
@@ -42,6 +43,7 @@ func NewModule(deps Dependencies) *Module {
 	createMerchant := command.NewCreateMerchantHandler(repo, tx, publisher, keyGen)
 	createAPIKey := command.NewCreateAPIKeyHandler(repo, tx, publisher, keyGen)
 	revokeAPIKey := command.NewRevokeAPIKeyHandler(repo, tx, publisher)
+	rotateWebhookSecret := command.NewRotateWebhookSecretHandler(repo, tx, publisher)
 	getMerchant := query.NewGetMerchantHandler(queries)
 	listAPIKeys := query.NewListAPIKeysHandler(queries)
 
@@ -50,12 +52,14 @@ func NewModule(deps Dependencies) *Module {
 			createMerchant,
 			createAPIKey,
 			revokeAPIKey,
+			rotateWebhookSecret,
 			getMerchant,
 			listAPIKeys,
 		),
 		hasher:      keyGen,
 		auth:        authenticator,
 		getMerchant: getMerchant,
+		queries:     queries,
 	}
 }
 
@@ -91,4 +95,16 @@ func (m *Module) WebhookURL(ctx context.Context, merchantID string) (string, err
 		return "", err
 	}
 	return dto.WebhookURL, nil
+}
+
+// WebhookSecret returns the merchant HMAC signing secret (not exposed over HTTP GET).
+func (m *Module) WebhookSecret(ctx context.Context, merchantID string) (string, error) {
+	secret, err := m.queries.WebhookSecret(ctx, merchantID)
+	if err != nil {
+		if errors.Is(err, domain.ErrMerchantNotFound) {
+			return "", ErrNotFound
+		}
+		return "", err
+	}
+	return secret, nil
 }

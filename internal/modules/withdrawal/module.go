@@ -21,9 +21,8 @@ import (
 
 // Module is the Withdrawal bounded context composition root.
 type Module struct {
-	handler           *withdrawalhttp.Handler
-	complete          *command.CompleteWithdrawalHandler
-	completedNotifier CompletedNotifier
+	handler  *withdrawalhttp.Handler
+	complete *command.CompleteWithdrawalHandler
 }
 
 type Dependencies struct {
@@ -65,32 +64,15 @@ func (m *Module) RegisterHTTP(g *echo.Group, authMiddleware echo.MiddlewareFunc)
 	})
 }
 
-// SetCompletedNotifier wires a post-complete side effect (e.g. webhook enqueue) at composition root.
-func (m *Module) SetCompletedNotifier(n CompletedNotifier) {
-	m.completedNotifier = n
-}
-
 // Complete marks a requested withdrawal as completed (sync facade for worker).
+// withdrawal.completed is persisted in the outbox in the same TX; the worker relays it.
 func (m *Module) Complete(ctx context.Context, withdrawalID, txHash string) error {
-	result, err := m.complete.Handle(ctx, command.CompleteWithdrawal{
+	_, err := m.complete.Handle(ctx, command.CompleteWithdrawal{
 		WithdrawalID: withdrawalID,
 		TxHash:       txHash,
 	})
 	if err != nil {
 		return mapPublicError(err)
-	}
-	if m.completedNotifier != nil {
-		if err := m.completedNotifier.NotifyWithdrawalCompleted(ctx, WithdrawalCompletedNotification{
-			WithdrawalID: result.ID,
-			MerchantID:   result.MerchantID,
-			TxHash:       result.TxHash,
-			Amount:       result.Amount,
-			Currency:     result.Currency,
-			Network:      result.Network,
-			OccurredAt:   result.UpdatedAt,
-		}); err != nil {
-			return err
-		}
 	}
 	return nil
 }

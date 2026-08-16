@@ -10,5 +10,5 @@ type DeliverResult struct {
 
 // HTTPDeliverer POSTs a signed webhook payload to the merchant URL.
 type HTTPDeliverer interface {
-	Deliver(ctx context.Context, deliveryID, eventName, url string, payload []byte) (DeliverResult, error)
+	Deliver(ctx context.Context, deliveryID, eventName, url string, payload []byte, signingSecret string) (DeliverResult, error)
 }

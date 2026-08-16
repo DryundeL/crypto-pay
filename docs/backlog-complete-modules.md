@@ -46,7 +46,7 @@
 **Сделано:**
 
 - [x] sync notifier: `invoice.paid` → `ledger.PostJournal` (idempotency `invoice_paid:{invoice_id}`)
-- [x] wiring в bootstrap / scanner через `app.NewSideEffectNotifier` (фаза 2 перенесёт в outbox consumer)
+- [x] wiring в bootstrap / scanner через `app.NewLedgerPaidNotifier` (webhook — outbox consumer, PR-2.2)
 
 **Done when:** после paid у мерчанта растёт available balance; повтор paid/credit идемпотентен.
 
@@ -93,33 +93,33 @@
 
 ## Фаза 2 — async reliability
 
-### PR-2.1 Outbox Relayer
+### PR-2.1 Outbox Relayer ✅
 
-**Сделать:**
+**Сделано:**
 
-- реализация `outbox.Relayer` (claim pending → publish → mark sent)
-- минимальный bus: in-process в worker **или** Watermill+Postgres/NATS
-- worker loop: relay + уже существующий webhook `ProcessDue`
+- [x] реализация `outbox.Relayer` (claim pending → publish → mark sent)
+- [x] минимальный bus: in-process в worker (Watermill можно подставить позже)
+- [x] worker loop: relay + expire + webhook `ProcessDue`
 
 **Done when:** `outbox_messages.status` доходит до `sent`; consumers видят события.
 
-### PR-2.2 Webhook enqueue из events (убрать sync notch)
+### PR-2.2 Webhook enqueue из events (убрать sync notch) ✅
 
-**Сделать:**
+**Сделано:**
 
-- убрать sync `webhookNotifier` после commit из invoice/withdrawal facades
-- consumer: `invoice.paid` / `withdrawal.completed` → `webhook.Enqueue`
-- at-least-once + текущая idempotency `event:source_id` остаются
+- [x] убрать sync webhook enqueue после commit из invoice/withdrawal facades
+- [x] consumer: `invoice.paid` / `withdrawal.completed` → `webhook.Enqueue`
+- [x] at-least-once + текущая idempotency `event:source_id` остаются
 
 **Done when:** падение API после MarkPaid не теряет webhook (delivery появится после relay).
 
-### PR-2.3 Per-merchant webhook secret
+### PR-2.3 Per-merchant webhook secret ✅
 
-**Сделать:**
+**Сделано:**
 
-- `merchants.webhook_secret` (generate on create / rotate endpoint)
-- подпись этим секретом, не `JWT_SECRET`
-- документ верификации для мерчанта
+- [x] `merchants.webhook_secret` (generate on create / rotate endpoint)
+- [x] подпись этим секретом, не `JWT_SECRET`
+- [x] документ верификации для мерчанта
 
 **Done when:** два мерчанта не шарят один signing key.
 

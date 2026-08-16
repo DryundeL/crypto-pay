@@ -14,6 +14,7 @@ type ProcessDueHandler struct {
 	tx        ports.TransactionManager
 	pub       ports.EventPublisher
 	deliverer ports.HTTPDeliverer
+	merchant  ports.MerchantEndpoint
 	now       func() time.Time
 }
 
@@ -22,12 +23,14 @@ func NewProcessDueHandler(
 	tx ports.TransactionManager,
 	pub ports.EventPublisher,
 	deliverer ports.HTTPDeliverer,
+	merchant ports.MerchantEndpoint,
 ) *ProcessDueHandler {
 	return &ProcessDueHandler{
 		repo:      repo,
 		tx:        tx,
 		pub:       pub,
 		deliverer: deliverer,
+		merchant:  merchant,
 		now:       time.Now,
 	}
 }
@@ -68,10 +71,14 @@ func (h *ProcessDueHandler) Handle(ctx context.Context, cmd ProcessDue) (Process
 
 func (h *ProcessDueHandler) attemptOne(ctx context.Context, d *domain.Delivery) (string, error) {
 	now := h.now().UTC()
-	res, deliverErr := h.deliverer.Deliver(ctx, d.ID().String(), d.EventName(), d.URL(), d.Payload())
+	secret, err := h.merchant.WebhookSecret(ctx, d.MerchantID())
+	if err != nil {
+		return "", fmt.Errorf("webhook secret: %w", err)
+	}
+	res, deliverErr := h.deliverer.Deliver(ctx, d.ID().String(), d.EventName(), d.URL(), d.Payload(), secret)
 
 	var outcome string
-	err := h.tx.WithinTransaction(ctx, func(ctx context.Context) error {
+	err = h.tx.WithinTransaction(ctx, func(ctx context.Context) error {
 		current, err := h.repo.FindByID(ctx, d.ID())
 		if err != nil {
 			return err

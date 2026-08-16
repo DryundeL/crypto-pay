@@ -106,3 +106,21 @@ func (q *MerchantQueries) ListAPIKeys(ctx context.Context, merchantID string) ([
 	}
 	return out, nil
 }
+
+func (q *MerchantQueries) WebhookSecret(ctx context.Context, merchantID string) (string, error) {
+	var row struct {
+		WebhookSecret string `gorm:"column:webhook_secret"`
+	}
+	err := q.db.WithContext(ctx).
+		Table("merchants").
+		Select("webhook_secret").
+		Where("id = ?", merchantID).
+		First(&row).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return "", domain.ErrMerchantNotFound
+		}
+		return "", fmt.Errorf("query webhook secret: %w", err)
+	}
+	return row.WebhookSecret, nil
+}

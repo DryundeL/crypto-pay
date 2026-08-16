@@ -19,9 +19,7 @@ import (
 	"github.com/DryundeL/crypto-pay/internal/modules/blockchain/evmpoll"
 	"github.com/DryundeL/crypto-pay/internal/modules/invoice"
 	"github.com/DryundeL/crypto-pay/internal/modules/ledger"
-	"github.com/DryundeL/crypto-pay/internal/modules/merchant"
 	"github.com/DryundeL/crypto-pay/internal/modules/payment"
-	"github.com/DryundeL/crypto-pay/internal/modules/webhook"
 	"github.com/DryundeL/crypto-pay/internal/platform/database"
 	"github.com/DryundeL/crypto-pay/internal/platform/observability"
 )
@@ -80,16 +78,7 @@ func main() {
 	blockchainModule.SetPaymentNotifier(paymentModule)
 
 	ledgerModule := ledger.NewModule(ledger.Dependencies{DB: db})
-	merchantModule := merchant.NewModule(merchant.Dependencies{
-		DB:           db,
-		APIKeyPepper: cfg.App.JWTSecret,
-	})
-	webhookModule := webhook.NewModule(webhook.Dependencies{
-		DB:            db,
-		Merchant:      merchantModule,
-		SigningSecret: cfg.App.JWTSecret,
-	})
-	invoiceModule.SetPaidNotifier(app.NewSideEffectNotifier(ledgerModule, webhookModule))
+	invoiceModule.SetPaidNotifier(app.NewLedgerPaidNotifier(ledgerModule))
 
 	client, err := ethclient.Dial(cfg.Scanner.SepoliaRPCURL)
 	if err != nil {

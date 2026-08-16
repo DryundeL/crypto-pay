@@ -3,15 +3,20 @@ package http
 import "time"
 
 type merchantResponse struct {
-	ID         string    `json:"id"`
-	Name       string    `json:"name"`
-	Status     string    `json:"status"`
-	WebhookURL string    `json:"webhook_url,omitempty"`
-	CreatedAt  time.Time `json:"created_at"`
-	UpdatedAt  time.Time `json:"updated_at,omitempty"`
-	APIKeyID   string    `json:"api_key_id,omitempty"`
-	KeyPrefix  string    `json:"key_prefix,omitempty"`
-	APIKey     string    `json:"api_key,omitempty"` // only on create
+	ID            string    `json:"id"`
+	Name          string    `json:"name"`
+	Status        string    `json:"status"`
+	WebhookURL    string    `json:"webhook_url,omitempty"`
+	CreatedAt     time.Time `json:"created_at"`
+	UpdatedAt     time.Time `json:"updated_at,omitempty"`
+	APIKeyID      string    `json:"api_key_id,omitempty"`
+	KeyPrefix     string    `json:"key_prefix,omitempty"`
+	APIKey        string    `json:"api_key,omitempty"`        // only on create
+	WebhookSecret string    `json:"webhook_secret,omitempty"` // only on create
+}
+
+type rotateWebhookSecretResponse struct {
+	WebhookSecret string `json:"webhook_secret"`
 }
 
 type apiKeyResponse struct {

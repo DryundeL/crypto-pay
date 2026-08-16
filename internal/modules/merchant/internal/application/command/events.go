@@ -29,3 +29,10 @@ type merchantAPIKeyRevokedEvent struct {
 }
 
 func (merchantAPIKeyRevokedEvent) EventName() string { return "merchant.api_key_revoked" }
+
+type merchantWebhookSecretRotatedEvent struct {
+	MerchantID string    `json:"merchant_id"`
+	OccurredAt time.Time `json:"occurred_at"`
+}
+
+func (merchantWebhookSecretRotatedEvent) EventName() string { return "merchant.webhook_secret_rotated" }

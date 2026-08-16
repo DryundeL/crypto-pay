@@ -21,12 +21,13 @@ func NewMerchantRepository(db *gorm.DB) *MerchantRepository {
 }
 
 type merchantRow struct {
-	ID         string    `gorm:"column:id;primaryKey"`
-	Name       string    `gorm:"column:name"`
-	Status     string    `gorm:"column:status"`
-	WebhookURL *string   `gorm:"column:webhook_url"`
-	CreatedAt  time.Time `gorm:"column:created_at"`
-	UpdatedAt  time.Time `gorm:"column:updated_at"`
+	ID            string    `gorm:"column:id;primaryKey"`
+	Name          string    `gorm:"column:name"`
+	Status        string    `gorm:"column:status"`
+	WebhookURL    *string   `gorm:"column:webhook_url"`
+	WebhookSecret string    `gorm:"column:webhook_secret"`
+	CreatedAt     time.Time `gorm:"column:created_at"`
+	UpdatedAt     time.Time `gorm:"column:updated_at"`
 }
 
 func (merchantRow) TableName() string { return "merchants" }
@@ -57,12 +58,13 @@ func (r *MerchantRepository) Save(ctx context.Context, merchant *domain.Merchant
 	}
 
 	row := merchantRow{
-		ID:         merchant.ID().String(),
-		Name:       merchant.Name(),
-		Status:     merchant.Status().String(),
-		WebhookURL: webhook,
-		CreatedAt:  merchant.CreatedAt().UTC(),
-		UpdatedAt:  merchant.UpdatedAt().UTC(),
+		ID:            merchant.ID().String(),
+		Name:          merchant.Name(),
+		Status:        merchant.Status().String(),
+		WebhookURL:    webhook,
+		WebhookSecret: merchant.WebhookSecret(),
+		CreatedAt:     merchant.CreatedAt().UTC(),
+		UpdatedAt:     merchant.UpdatedAt().UTC(),
 	}
 
 	if err := db.Save(&row).Error; err != nil {
@@ -130,6 +132,7 @@ func (r *MerchantRepository) FindByID(ctx context.Context, id domain.MerchantID)
 		row.Name,
 		domain.Status(row.Status),
 		webhook,
+		row.WebhookSecret,
 		keys,
 		row.CreatedAt,
 		row.UpdatedAt,

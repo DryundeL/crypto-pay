@@ -25,7 +25,7 @@ func TestHTTPDelivererSignsPayload(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	d := NewHTTPDeliverer("test-signing-secret-at-least-32-chars!!")
+	d := NewHTTPDeliverer()
 	d.now = func() time.Time { return time.Unix(1700000000, 0).UTC() }
 	// validateURL uses lookup; actual dial goes through httptest client.
 	d.lookupIP = func(ctx context.Context, host string) ([]net.IP, error) {
@@ -37,7 +37,7 @@ func TestHTTPDelivererSignsPayload(t *testing.T) {
 	}
 
 	payload := []byte(`{"event":"invoice.paid"}`)
-	res, err := d.Deliver(context.Background(), "del-1", "invoice.paid", srv.URL, payload)
+	res, err := d.Deliver(context.Background(), "del-1", "invoice.paid", srv.URL, payload, "test-signing-secret-at-least-32-chars!!")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -62,7 +62,7 @@ func TestHTTPDelivererSignsPayload(t *testing.T) {
 }
 
 func TestHTTPDelivererRejectsPrivateIP(t *testing.T) {
-	d := NewHTTPDeliverer("test-signing-secret-at-least-32-chars!!")
+	d := NewHTTPDeliverer()
 	d.lookupIP = func(ctx context.Context, host string) ([]net.IP, error) {
 		return []net.IP{net.ParseIP("127.0.0.1")}, nil
 	}
@@ -73,6 +73,7 @@ func TestHTTPDelivererRejectsPrivateIP(t *testing.T) {
 		"invoice.paid",
 		"https://evil.example/hook",
 		[]byte(`{}`),
+		"test-signing-secret-at-least-32-chars!!",
 	)
 	if err != nil {
 		t.Fatalf("expected soft failure, got err %v", err)
@@ -85,10 +86,12 @@ func TestHTTPDelivererRejectsPrivateIP(t *testing.T) {
 	}
 }
 
-func TestSignPayloadStable(t *testing.T) {
+func TestSignPayloadUsesGivenSecret(t *testing.T) {
 	ts := strconv.FormatInt(1700000000, 10)
-	got := signPayload([]byte("secret"), ts, []byte("body"))
-	if got == "" || len(got) != 64 {
-		t.Fatalf("unexpected signature %q", got)
+	body := []byte("body")
+	a := signPayload([]byte("secret-a-must-be-long-enough-32ch"), ts, body)
+	b := signPayload([]byte("secret-b-must-be-long-enough-32ch"), ts, body)
+	if a == b {
+		t.Fatal("different merchant secrets must produce different signatures")
 	}
 }
